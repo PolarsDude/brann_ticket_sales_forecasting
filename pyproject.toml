@@ -1,0 +1,14 @@
+[project]
+name = "brann-tickets-scraping"
+version = "0.1.0"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "polars",
+    "polars_ds",
+    "requests",
+]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.3.0",
+]
