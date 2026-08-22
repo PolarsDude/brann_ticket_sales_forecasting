@@ -14,7 +14,7 @@ def main() -> None:
 
     with SNAPSHOT_FILE.open("a", encoding="utf-8") as file:
         for event in [1187151]:#get_available_events():
-            rows = scrape_ticket_sections(event["event_id"])
+            rows = scrape_ticket_sections(event)
             print(rows)
             for row in rows:
                 row["snapshot_at"] = row["snapshot_at"].isoformat()
