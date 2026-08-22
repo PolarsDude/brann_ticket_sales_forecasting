@@ -15,11 +15,21 @@ SECTION_URL = (
     "{event_id}/seating_arrangement/sections/{section_id}.json"
 )
 SHOP_URL = "https://brann.ticketco.shop"
+REQUEST_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/131.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "nb-NO,nb;q=0.9,en;q=0.8",
+}
 
 
 def get_available_events(shop_url: str = SHOP_URL) -> list[dict[str, Any]]:
     """Return published home matches with their event IDs and names."""
     with requests.Session() as session:
+        session.headers.update(REQUEST_HEADERS)
         response = session.get(shop_url, timeout=30)
         response.raise_for_status()
 
@@ -64,6 +74,7 @@ def scrape_ticket_sections(event_id: int) -> list[dict[str, Any]]:
     snapshot_at = datetime.now(timezone.utc)
 
     with requests.Session() as session:
+        session.headers.update(REQUEST_HEADERS)
         event_response = session.get(EVENT_URL.format(event_id=event_id), timeout=30)
         event_response.raise_for_status()
 
