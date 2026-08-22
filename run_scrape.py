@@ -13,7 +13,7 @@ def main() -> None:
     SNAPSHOT_FILE.parent.mkdir(exist_ok=True)
 
     with SNAPSHOT_FILE.open("a", encoding="utf-8") as file:
-        for event in get_available_events():
+        for event in [1187151]:#get_available_events():
             rows = scrape_ticket_sections(event["event_id"])
             print(rows)
             for row in rows:
