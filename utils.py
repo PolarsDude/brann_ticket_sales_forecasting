@@ -22,6 +22,10 @@ TRANSFERMARKT_MATCHES_URL = (
     "saison_id/{season_id}/plus/1"
 )
 TRANSFERMARKT_BASE_URL = "https://www.transfermarkt.com"
+ELITESERIEN_SCHEDULE_URL = (
+    "https://www.transfermarkt.com/eliteserien/gesamtspielplan/"
+    "wettbewerb/NO1/saison_id/{season_id}"
+)
 REQUEST_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -80,7 +84,7 @@ def scrape_match_results(
     season_id: int = 2025,
     url: str | None = None,
     year: int | None = None,
-) -> list[dict[str, date | str]]:
+) -> list[dict[str, Any]]:
     """Return completed SK Brann matches from Transfermarkt."""
     match_url = url or TRANSFERMARKT_MATCHES_URL.format(season_id=season_id)
     response = requests.get(
@@ -91,6 +95,7 @@ def scrape_match_results(
     response.raise_for_status()
 
     soup = BeautifulSoup(response.text, "html.parser")
+    snapshot_at = datetime.now(timezone.utc)
     matches: list[dict[str, Any]] = []
     date_pattern = re.compile(r"\b(\d{2}/\d{2}/\d{4})\b")
     result_pattern = re.compile(r"\b\d+\s*:\s*\d+(?:\s+(?:AET|on pens))?\b")
@@ -110,17 +115,15 @@ def scrape_match_results(
             None,
         )
         team_cells = row.select("td.no-border-links")
+        raw_teams = [" ".join(cell.stripped_strings) for cell in team_cells]
         teams = [
-            re.sub(r"\s+\(\d+\.\)$", "", " ".join(cell.stripped_strings))
-            for cell in team_cells
+            re.sub(r"\s+\(\d+\.\)$", "", team).strip()
+            for team in raw_teams
         ]
-
         if not date_match or not result_match or len(teams) < 2:
             continue
 
-        match_date = datetime.strptime(
-            date_match.group(1), "%d/%m/%Y"
-        ).date()
+        match_date = datetime.strptime(date_match.group(1), "%d/%m/%Y").date()
         if year is not None and match_date.year != year:
             continue
 
@@ -130,6 +133,7 @@ def scrape_match_results(
                 "home_team": teams[0],
                 "away_team": teams[1],
                 "result": result_match.group(0),
+                "snapshot_at": snapshot_at,
                 "brann_goal_scorers": scrape_brann_goal_scorers(
                     report_link,
                     home_team=teams[0],
@@ -139,6 +143,90 @@ def scrape_match_results(
         )
 
     return matches
+
+
+def scrape_eliteserien_results(
+    season_id: int = 2025,
+    year: int | None = None,
+) -> list[dict[str, Any]]:
+    """Return Eliteserien results with their matchday."""
+    url = ELITESERIEN_SCHEDULE_URL.format(season_id=season_id)
+    response = requests.get(
+        url,
+        headers={"User-Agent": REQUEST_HEADERS["User-Agent"]},
+        timeout=30,
+    )
+    response.raise_for_status()
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    snapshot_at = datetime.now(timezone.utc)
+    date_pattern = re.compile(r"(\d{2}/\d{2}/\d{2})")
+    result_pattern = re.compile(r"^(\d+)\s*:\s*(\d+)")
+    matchday_pattern = re.compile(r"(\d+)\.Matchday", re.IGNORECASE)
+    scheduled_matches: list[dict[str, Any]] = []
+
+    for table in soup.select("table"):
+        headline = table.find_previous(
+            "div", class_="content-box-headline"
+        )
+        matchday_match = (
+            matchday_pattern.search(headline.get_text(" ", strip=True))
+            if headline
+            else None
+        )
+        if not matchday_match:
+            continue
+        matchday = int(matchday_match.group(1))
+        current_date: date | None = None
+
+        for row in table.select("tr"):
+            cells = row.find_all("td")
+            if not cells:
+                continue
+
+            row_text = " ".join(row.stripped_strings)
+            date_match = date_pattern.search(row_text)
+            if date_match:
+                current_date = datetime.strptime(
+                    date_match.group(1), "%d/%m/%y"
+                ).date()
+
+            if current_date is None or len(cells) < 7:
+                continue
+
+            home_team = re.sub(
+                r"^\(\d+\.\)\s*|\s+\(\d+\.\)$",
+                "",
+                " ".join(cells[2].stripped_strings),
+            ).strip()
+            result_text = " ".join(cells[4].stripped_strings)
+            away_team = re.sub(
+                r"^\(\d+\.\)\s*|\s+\(\d+\.\)$",
+                "",
+                " ".join(cells[6].stripped_strings),
+            ).strip()
+            result_match = result_pattern.fullmatch(result_text)
+            if not result_match or not home_team or not away_team:
+                continue
+            scheduled_matches.append(
+                {
+                    "date": current_date,
+                    "matchday": matchday,
+                    "home_team": home_team,
+                    "away_team": away_team,
+                    "result": result_text,
+                }
+            )
+
+    scheduled_matches.sort(key=lambda match: match["date"])
+    return [
+        {
+            **match,
+            "snapshot_at": snapshot_at,
+        }
+        for match in scheduled_matches
+        if year is None or match["date"].year == year
+    ]
 
 
 def scrape_brann_goal_scorers(
