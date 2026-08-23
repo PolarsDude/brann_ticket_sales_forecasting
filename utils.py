@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from html import unescape
 import re
 from typing import Any
+from urllib.parse import urljoin
 
 import requests
+from bs4 import BeautifulSoup
 
 
 EVENT_URL = "https://brann.ticketco.events/no/nb/events/{event_id}/seating_arrangement"
@@ -15,6 +17,11 @@ SECTION_URL = (
     "{event_id}/seating_arrangement/sections/{section_id}.json"
 )
 SHOP_URL = "https://brann.ticketco.shop"
+TRANSFERMARKT_MATCHES_URL = (
+    "https://www.transfermarkt.com/sk-brann/spielplan/verein/1100/"
+    "saison_id/{season_id}/plus/1"
+)
+TRANSFERMARKT_BASE_URL = "https://www.transfermarkt.com"
 REQUEST_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -67,6 +74,124 @@ def get_available_events(shop_url: str = SHOP_URL) -> list[dict[str, Any]]:
 def get_available_event_ids(shop_url: str = SHOP_URL) -> list[int]:
     """Return event IDs currently published in the Brann TicketCo shop."""
     return sorted(event["event_id"] for event in get_available_events(shop_url))
+
+
+def scrape_match_results(
+    season_id: int = 2025,
+    url: str | None = None,
+    year: int | None = None,
+) -> list[dict[str, date | str]]:
+    """Return completed SK Brann matches from Transfermarkt."""
+    match_url = url or TRANSFERMARKT_MATCHES_URL.format(season_id=season_id)
+    response = requests.get(
+        match_url,
+        headers={"User-Agent": REQUEST_HEADERS["User-Agent"]},
+        timeout=30,
+    )
+    response.raise_for_status()
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    matches: list[dict[str, Any]] = []
+    date_pattern = re.compile(r"\b(\d{2}/\d{2}/\d{4})\b")
+    result_pattern = re.compile(r"\b\d+\s*:\s*\d+(?:\s+(?:AET|on pens))?\b")
+
+    for row in soup.select("table tr"):
+        cells = row.find_all("td")
+        row_text = " ".join(row.stripped_strings)
+        date_match = date_pattern.search(row_text)
+        result_text = " ".join(cells[-1].stripped_strings) if cells else ""
+        result_match = result_pattern.search(result_text)
+        report_link = next(
+            (
+                urljoin(TRANSFERMARKT_BASE_URL, link["href"])
+                for link in row.select("a[href*='/spielbericht/']")
+                if link.get("href")
+            ),
+            None,
+        )
+        team_cells = row.select("td.no-border-links")
+        teams = [
+            re.sub(r"\s+\(\d+\.\)$", "", " ".join(cell.stripped_strings))
+            for cell in team_cells
+        ]
+
+        if not date_match or not result_match or len(teams) < 2:
+            continue
+
+        match_date = datetime.strptime(
+            date_match.group(1), "%d/%m/%Y"
+        ).date()
+        if year is not None and match_date.year != year:
+            continue
+
+        matches.append(
+            {
+                "date": match_date,
+                "home_team": teams[0],
+                "away_team": teams[1],
+                "result": result_match.group(0),
+                "brann_goal_scorers": scrape_brann_goal_scorers(
+                    report_link,
+                    home_team=teams[0],
+                    away_team=teams[1],
+                ),
+            }
+        )
+
+    return matches
+
+
+def scrape_brann_goal_scorers(
+    report_url: str | None,
+    home_team: str,
+    away_team: str,
+) -> list[str]:
+    """Return Brann players who scored in a Transfermarkt match report."""
+    if not report_url:
+        return []
+
+    response = requests.get(
+        report_url,
+        headers={
+            "User-Agent": REQUEST_HEADERS["User-Agent"],
+            "X-Requested-With": "XMLHttpRequest",
+        },
+        timeout=30,
+    )
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, "html.parser")
+    scorers: list[str] = []
+
+    for event in soup.select(".sb-leiste-ereignis[data-content]"):
+        if not event.select_one(".sb-sprite.sb-tor"):
+            continue
+
+        event_url = urljoin(
+            report_url,
+            event["data-content"],
+        )
+        event_response = requests.get(
+            event_url,
+            headers={
+                "User-Agent": REQUEST_HEADERS["User-Agent"],
+                "X-Requested-With": "XMLHttpRequest",
+            },
+            timeout=30,
+        )
+        event_response.raise_for_status()
+        event_soup = BeautifulSoup(event_response.text, "html.parser")
+        team_image = event_soup.select_one(".sb-tt-verein img[title]")
+        scorer = event_soup.select_one(".sb-tt-spielername a")
+
+        if (
+            team_image
+            and scorer
+            and team_image.get("title") in {home_team, away_team}
+            and "brann" in team_image["title"].lower()
+        ):
+            scorers.append(" ".join(scorer.stripped_strings))
+
+    return scorers
 
 
 def scrape_ticket_sections(event_id: int) -> list[dict[str, Any]]:
