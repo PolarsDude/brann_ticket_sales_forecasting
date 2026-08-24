@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+import polars as pl
 from collections import Counter
 from datetime import date, datetime, timezone
 from html import unescape
@@ -143,6 +143,87 @@ def scrape_match_results(
         )
 
     return matches
+
+
+def create_table_after_round(
+    eliteserien_results: list[dict[str, Any]],
+) -> pl.DataFrame:
+    matches = pl.DataFrame(eliteserien_results).with_columns([
+        pl.col("result")
+        .str.split_exact(":", 1)
+        .struct.field("field_0")
+        .cast(pl.Int64)
+        .alias("home_goals"),
+        pl.col("result")
+        .str.split_exact(":", 1)
+        .struct.field("field_1")
+        .cast(pl.Int64)
+        .alias("away_goals"),
+    ])
+
+    home = matches.select([
+        "matchday",
+        pl.col("home_team").alias("team"),
+        pl.col("home_goals").alias("goals_for"),
+        pl.col("away_goals").alias("goals_against"),
+        pl.when(pl.col("home_goals") > pl.col("away_goals"))
+        .then(3)
+        .when(pl.col("home_goals") == pl.col("away_goals"))
+        .then(1)
+        .otherwise(0)
+        .alias("points"),
+    ])
+
+    away = matches.select([
+        "matchday",
+        pl.col("away_team").alias("team"),
+        pl.col("away_goals").alias("goals_for"),
+        pl.col("home_goals").alias("goals_against"),
+        pl.when(pl.col("away_goals") > pl.col("home_goals"))
+        .then(3)
+        .when(pl.col("away_goals") == pl.col("home_goals"))
+        .then(1)
+        .otherwise(0)
+        .alias("points"),
+    ])
+
+    round_table = (
+        pl.concat([home, away])
+        .group_by(["matchday", "team"])
+        .agg([
+            pl.col("points").sum(),
+            pl.col("goals_for").sum(),
+            pl.col("goals_against").sum(),
+        ])
+        .with_columns(
+            (pl.col("goals_for") - pl.col("goals_against"))
+            .alias("goal_difference")
+        )
+        .sort(["team", "matchday"])
+    )
+
+    return (
+        round_table
+        .with_columns([
+            pl.col("points").cum_sum().over("team").alias("total_points"),
+            pl.col("goals_for").cum_sum().over("team").alias("total_goals_for"),
+            pl.col("goals_against")
+            .cum_sum()
+            .over("team")
+            .alias("total_goals_against"),
+            pl.col("goal_difference")
+            .cum_sum()
+            .over("team")
+            .alias("total_goal_difference"),
+        ])
+        .with_columns(
+            pl.col("total_points")
+            .rank("min", descending=True)
+            .over("matchday")
+            .alias("table_position")
+        )
+        .sort(["matchday", "table_position", "team"])
+    )
 
 
 def scrape_eliteserien_results(
