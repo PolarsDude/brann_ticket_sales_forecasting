@@ -10,7 +10,3 @@ __pycache__/
 
 # Jupyter temporary files
 .ipynb_checkpoints/
-
-# Local scraper database
-*.duckdb
-*.duckdb.wal
