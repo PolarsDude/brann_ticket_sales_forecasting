@@ -1,0 +1,15 @@
+brann_analytics:
+  outputs:
+    dev:
+      type: duckdb
+      path: '../data/brann.duckdb'
+      schema: main
+      threads: 4
+      timeout_seconds: 300
+    prod:
+      type: duckdb
+      path: '../data/brann.duckdb'
+      schema: main
+      threads: 4
+      timeout_seconds: 300
+  target: dev
