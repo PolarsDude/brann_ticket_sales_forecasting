@@ -2,7 +2,8 @@ version: 2
 
 sources:
   - name: raw
-    description: Raw data from web scraping
+    description: Raw data from web scraping in DuckDB
+    schema: main
     tables:
       - name: raw_eliteserien_results
-        description: Raw Eliteserien match results (date, matchday, teams, result, snapshot_at)
+        description: Raw Eliteserien match results (date, matchday, home_team, away_team, result, snapshot_at, ingested_at)

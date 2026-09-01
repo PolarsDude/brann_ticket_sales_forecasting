@@ -1,0 +1,1 @@
+{"_invocation_id": "b313b0b5-0a60-443c-9b16-6102e07ee122", "linked": {"0": {"name": "source.brann_analytics.raw.raw_eliteserien_results", "type": "source", "succ": [1]}, "1": {"name": "model.brann_analytics.fct_league_standings", "type": "model"}}}

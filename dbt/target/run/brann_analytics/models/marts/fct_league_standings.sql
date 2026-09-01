@@ -1,4 +1,12 @@
-{{ config(materialized='table') }}
+
+    
+
+    create  table
+      "brann"."main"."fct_league_standings__dbt_tmp"
+  
+    
+    as (
+      
 
 -- League standings after each matchday
 -- Shows cumulative points, goals, and position for each team
@@ -12,7 +20,7 @@ with matches as (
         result,
         cast(split_part(result, ':', 1) as integer) as home_goals,
         cast(split_part(result, ':', 2) as integer) as away_goals
-    from {{ source('raw', 'raw_eliteserien_results') }}
+    from "brann"."main"."raw_eliteserien_results"
 ),
 
 -- Split each match into two rows (one per team)
@@ -78,3 +86,6 @@ final as (
 
 select * from final
 order by matchday desc, position
+    );
+    
+  
