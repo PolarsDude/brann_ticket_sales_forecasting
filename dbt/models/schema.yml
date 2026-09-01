@@ -7,3 +7,46 @@ sources:
     tables:
       - name: raw_eliteserien_results
         description: Raw Eliteserien match results (date, matchday, home_team, away_team, result, snapshot_at, ingested_at)
+
+models:
+  - name: fct_matches
+    description: "One row per match per round. Contains match results with parsed goals and winner information."
+    columns:
+      - name: date
+        description: "The date when the match was played"
+      - name: matchday
+        description: "The round number (matchday) in the season"
+      - name: home_team
+        description: "Name of the home team"
+      - name: away_team
+        description: "Name of the away team"
+      - name: result
+        description: "Match result as string in format 'X:Y' (e.g. '2:1')"
+      - name: home_goals
+        description: "Number of goals scored by the home team"
+      - name: away_goals
+        description: "Number of goals scored by the away team"
+      - name: winner
+        description: "Match winner: 'home_team' if home team won, 'away_team' if away team won, 'draw' for ties"
+      - name: snapshot_at
+        description: "Timestamp when the data was fetched from the source"
+      - name: ingested_at
+        description: "Timestamp when the data was loaded into the DuckDB database"
+  
+  - name: fct_league_standings
+    description: "League standings after each matchday. One row per team per round showing cumulative statistics."
+    columns:
+      - name: matchday
+        description: "The round number (matchday) in the season"
+      - name: team
+        description: "Team name"
+      - name: total_points
+        description: "Cumulative points earned up to and including this matchday"
+      - name: total_goals_for
+        description: "Cumulative goals scored up to and including this matchday"
+      - name: total_goals_against
+        description: "Cumulative goals conceded up to and including this matchday"
+      - name: goal_difference
+        description: "Cumulative goal difference (goals_for - goals_against)"
+      - name: position
+        description: "Team's position in the league table after this matchday"
