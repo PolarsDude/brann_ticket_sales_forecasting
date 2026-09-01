@@ -9,6 +9,14 @@ sources:
         description: Raw Eliteserien match results (date, matchday, home_team, away_team, result, snapshot_at, ingested_at)
 
 models:
+  - name: dim_teams
+    description: "Canonical team names available in each Eliteserien season. Use it to resolve partial names such as 'Rosenborg' to 'Rosenborg BK'."
+    columns:
+      - name: season_year
+        description: "Calendar year of the Eliteserien season"
+      - name: team_name
+        description: "Canonical team name used by fct_matches and fct_league_standings"
+
   - name: fct_matches
     description: "One row per match per round. Contains match results with parsed goals and winner information."
     columns:

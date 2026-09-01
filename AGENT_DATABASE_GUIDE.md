@@ -10,7 +10,27 @@ This guide provides all necessary information for the text-to-SQL agent to query
 
 ## Available Tables
 
-### 1. fct_matches
+### 1. dim_teams
+**Description:** Canonical team names available in each Eliteserien season. Use this table to resolve an incomplete team name in a question before filtering match or standings tables.
+
+**Columns:**
+- `season_year` (INTEGER): Calendar year of the season
+- `team_name` (VARCHAR): Exact team name used in the fact tables
+
+**Example: Resolve "Rosenborg" to its exact name**
+```sql
+SELECT team_name
+FROM dim_teams
+WHERE team_name ILIKE '%Rosenborg%'
+```
+
+This returns `Rosenborg BK`. Use that exact value when querying `fct_matches` or `fct_league_standings`.
+
+**Known name resolution:** `Sarpsborg` resolves to `Sarpsborg 08`, not `Sarpsborg 08 FF`.
+
+---
+
+### 2. fct_matches
 **Description:** One row per match per round. Contains all match results with parsed goals and winner information.
 
 **Columns:**
@@ -32,7 +52,7 @@ This guide provides all necessary information for the text-to-SQL agent to query
 
 ---
 
-### 2. fct_league_standings
+### 3. fct_league_standings
 **Description:** League standings after each matchday. One row per team per round showing cumulative statistics.
 
 **Columns:**
@@ -124,11 +144,26 @@ WHERE (home_team = 'SK Brann' AND away_team = 'Molde FK')
 ORDER BY date
 ```
 
+### Count Brann Wins in a Month
+```sql
+-- Replace 4 with the requested month number (4 = April).
+SELECT
+        COUNT(*) AS wins
+FROM fct_matches
+WHERE EXTRACT(MONTH FROM date) = 4
+    AND (
+            (home_team = 'SK Brann' AND winner = 'home_team')
+            OR (away_team = 'SK Brann' AND winner = 'away_team')
+    )
+```
+
 ---
 
 ## Important Rules for the Agent
 
 1. **Team Name:** Always use `'SK Brann'` as the exact team name (case-sensitive)
+
+    For every other team, always use `dim_teams` to find the exact `team_name` before filtering matches or standings. Do not guess a team name from general knowledge. For example, resolve `Rosenborg` to `Rosenborg BK` and `Sarpsborg` to `Sarpsborg 08`.
 
 2. **Winner Values:** Use exact values:
    - `'home_team'` - home team won

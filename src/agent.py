@@ -16,7 +16,7 @@ from src.config import DB_PATH, PROJECT_ROOT
 
 
 GUIDE_PATH = PROJECT_ROOT / "AGENT_DATABASE_GUIDE.md"
-ALLOWED_TABLES = {"fct_matches", "fct_league_standings"}
+ALLOWED_TABLES = {"dim_teams", "fct_matches", "fct_league_standings"}
 FORBIDDEN_KEYWORDS = re.compile(
     r"\b(attach|copy|create|delete|drop|export|insert|install|load|update|"
     r"pragma|replace|truncate|vacuum)\b",
@@ -43,7 +43,11 @@ def generate_sql(state: AgentState) -> dict[str, str]:
 {guide}
 
 Return only one SQL statement. It must start with SELECT or WITH, read only from
-fct_matches and/or fct_league_standings, and never use markdown fences or an explanation.
+dim_teams, fct_matches, and/or fct_league_standings, and never use markdown fences or an explanation.
+
+Always use 'SK Brann' for Brann. For every other team mentioned by the user, resolve
+the name in a CTE from dim_teams with ILIKE before using it in a match or standings
+filter. Never invent, guess, or use an external variant of a team name.
 """
     model = ChatOpenAI(model="gpt-4.1-mini", temperature=0)
     response = model.invoke(f"{instructions}\n\nQuestion: {state['question']}")
@@ -63,7 +67,15 @@ def validate_sql(sql: str) -> None:
         match.lower()
         for match in re.findall(r"\b(?:from|join)\s+([a-zA-Z_][a-zA-Z0-9_]*)", normalized, re.IGNORECASE)
     )
-    if not referenced_tables or not referenced_tables.issubset(ALLOWED_TABLES):
+    cte_names = set(
+        match.lower()
+        for match in re.findall(
+            r"(?:\bwith|,)\s*([a-zA-Z_][a-zA-Z0-9_]*)\s+as\s*\(",
+            normalized,
+            re.IGNORECASE,
+        )
+    )
+    if not referenced_tables or not referenced_tables.issubset(ALLOWED_TABLES | cte_names):
         raise ValueError("Spørringen bruker en tabell som agenten ikke har tilgang til.")
 
 
