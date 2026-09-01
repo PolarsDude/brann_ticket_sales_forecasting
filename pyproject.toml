@@ -4,9 +4,11 @@ version = "0.1.0"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "beautifulsoup4",
+    "dbt-duckdb>=1.11.0",
     "duckdb>=1.5.5",
     "polars",
     "polars_ds",
+    "pyarrow>=25.0.1",
     "requests",
 ]
 
