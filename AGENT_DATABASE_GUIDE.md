@@ -14,7 +14,7 @@ This guide provides all necessary information for the text-to-SQL agent to query
 **Description:** One row per match per round. Contains all match results with parsed goals and winner information.
 
 **Columns:**
-- `date` (DATE): The date when the match was played
+- `date` (DATE): The date when the match was played. Use it to filter by period, for example to count how many matches Brann won in spring, summer, or autumn.
 - `matchday` (INTEGER): The round number in the season
 - `home_team` (VARCHAR): Name of the home team
 - `away_team` (VARCHAR): Name of the away team

@@ -6,9 +6,14 @@ dependencies = [
     "beautifulsoup4",
     "dbt-duckdb>=1.11.0",
     "duckdb>=1.5.5",
+    "langchain>=1.0.0",
+    "langchain-openai>=1.0.0",
+    "langgraph>=1.0.0",
+    "openai>=2.0.0",
     "polars",
     "polars_ds",
     "pyarrow>=25.0.1",
+    "python-dotenv>=1.0.0",
     "requests",
 ]
 
