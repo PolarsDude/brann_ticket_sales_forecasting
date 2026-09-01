@@ -4,15 +4,7 @@
 -- Shows cumulative points, goals, and position for each team
 
 with matches as (
-    select
-        date,
-        matchday,
-        home_team,
-        away_team,
-        result,
-        cast(split_part(result, ':', 1) as integer) as home_goals,
-        cast(split_part(result, ':', 2) as integer) as away_goals
-    from {{ source('raw', 'raw_eliteserien_results') }}
+    select * from {{ ref('fct_matches') }}
 ),
 
 -- Split each match into two rows (one per team)
