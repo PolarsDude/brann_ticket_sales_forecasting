@@ -10,5 +10,8 @@ DB_PATH = DATA_DIR / "brann.duckdb"
 DATA_DIR.mkdir(exist_ok=True)
 
 # Scraping configuration
-ELITESERIEN_SEASON_ID = 2025
-ELITESERIEN_YEAR = 2026
+ELITESERIEN_SEASONS = [
+	(season_id, season_id + 1)
+	for season_id in range(2014, 2026)
+]
+SCRAPE_DELAY_SECONDS = 5.0

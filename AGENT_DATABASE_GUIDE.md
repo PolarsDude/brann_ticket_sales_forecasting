@@ -14,14 +14,15 @@ This guide provides all necessary information for the text-to-SQL agent to query
 **Description:** Canonical team names available in each Eliteserien season. Use this table to resolve an incomplete team name in a question before filtering match or standings tables.
 
 **Columns:**
-- `season_year` (INTEGER): Calendar year of the season
+- `season` (INTEGER): Calendar year of the season
 - `team_name` (VARCHAR): Exact team name used in the fact tables
 
 **Example: Resolve "Rosenborg" to its exact name**
 ```sql
 SELECT team_name
 FROM dim_teams
-WHERE team_name ILIKE '%Rosenborg%'
+WHERE season = 2026
+    AND team_name ILIKE '%Rosenborg%'
 ```
 
 This returns `Rosenborg BK`. Use that exact value when querying `fct_matches` or `fct_league_standings`.
@@ -34,6 +35,7 @@ This returns `Rosenborg BK`. Use that exact value when querying `fct_matches` or
 **Description:** One row per match per round. Contains all match results with parsed goals and winner information.
 
 **Columns:**
+- `season` (INTEGER): Calendar year of the Eliteserien season. Filter on this column when a question concerns a specific season.
 - `date` (DATE): The date when the match was played. Use it to filter by period, for example to count how many matches Brann won in spring, summer, or autumn.
 - `matchday` (INTEGER): The round number in the season
 - `home_team` (VARCHAR): Name of the home team
@@ -48,7 +50,7 @@ This returns `Rosenborg BK`. Use that exact value when querying `fct_matches` or
 **Key Features:**
 - Complete match history with parsed scoring information
 - Winner column simplifies queries about who won each match
-- All Eliteserien matches for the season
+- All Eliteserien matches from 2015 through the current season
 
 ---
 
@@ -56,6 +58,7 @@ This returns `Rosenborg BK`. Use that exact value when querying `fct_matches` or
 **Description:** League standings after each matchday. One row per team per round showing cumulative statistics.
 
 **Columns:**
+- `season` (INTEGER): Calendar year of the Eliteserien season. Points and league position reset for every season.
 - `matchday` (INTEGER): The round number in the season
 - `team` (VARCHAR): Team name
 - `total_points` (INTEGER): Cumulative points earned up to and including this matchday
@@ -66,7 +69,7 @@ This returns `Rosenborg BK`. Use that exact value when querying `fct_matches` or
 
 **Key Features:**
 - Shows historical league table progression through the season
-- Position calculated based on points, then goal difference for ties
+- Position calculated based on points, then goal difference for ties, within each season
 - Useful for tracking team performance over time
 
 ---
@@ -76,6 +79,7 @@ This returns `Rosenborg BK`. Use that exact value when querying `fct_matches` or
 ### Get Last 5 Brann Matches
 ```sql
 SELECT 
+    season,
     date,
     matchday,
     home_team,
@@ -83,7 +87,8 @@ SELECT
     result,
     winner
 FROM fct_matches
-WHERE home_team = 'SK Brann' OR away_team = 'SK Brann'
+WHERE season = (SELECT MAX(season) FROM fct_matches)
+    AND (home_team = 'SK Brann' OR away_team = 'SK Brann')
 ORDER BY date DESC
 LIMIT 5
 ```
@@ -91,6 +96,7 @@ LIMIT 5
 ### Get Brann's Current Position (Latest Matchday)
 ```sql
 SELECT 
+    season,
     team,
     position,
     total_points,
@@ -100,13 +106,14 @@ SELECT
     matchday
 FROM fct_league_standings
 WHERE team = 'SK Brann'
-ORDER BY matchday DESC
+ORDER BY season DESC, matchday DESC
 LIMIT 1
 ```
 
 ### Get Latest League Table
 ```sql
 SELECT 
+    season,
     position,
     team,
     total_points,
@@ -114,7 +121,12 @@ SELECT
     total_goals_against,
     goal_difference
 FROM fct_league_standings
-WHERE matchday = (SELECT MAX(matchday) FROM fct_league_standings)
+WHERE season = (SELECT MAX(season) FROM fct_league_standings)
+    AND matchday = (
+            SELECT MAX(matchday)
+            FROM fct_league_standings
+            WHERE season = (SELECT MAX(season) FROM fct_league_standings)
+    )
 ORDER BY position
 ```
 
@@ -125,13 +137,16 @@ SELECT
     COUNT(CASE WHEN home_team = 'SK Brann' THEN 1 END) as home_wins,
     COUNT(CASE WHEN away_team = 'SK Brann' THEN 1 END) as away_wins
 FROM fct_matches
-WHERE (home_team = 'SK Brann' AND winner = 'home_team')
+WHERE season = 2026
+    AND ((home_team = 'SK Brann' AND winner = 'home_team')
    OR (away_team = 'SK Brann' AND winner = 'away_team')
+    )
 ```
 
 ### Get Matches Between Two Teams
 ```sql
 SELECT 
+    season,
     date,
     matchday,
     home_team,
@@ -139,8 +154,10 @@ SELECT
     result,
     winner
 FROM fct_matches
-WHERE (home_team = 'SK Brann' AND away_team = 'Molde FK')
+WHERE season = 2026
+    AND ((home_team = 'SK Brann' AND away_team = 'Molde FK')
    OR (home_team = 'Molde FK' AND away_team = 'SK Brann')
+    )
 ORDER BY date
 ```
 
@@ -150,7 +167,8 @@ ORDER BY date
 SELECT
         COUNT(*) AS wins
 FROM fct_matches
-WHERE EXTRACT(MONTH FROM date) = 4
+WHERE season = 2026
+    AND EXTRACT(MONTH FROM date) = 4
     AND (
             (home_team = 'SK Brann' AND winner = 'home_team')
             OR (away_team = 'SK Brann' AND winner = 'away_team')
@@ -163,7 +181,7 @@ WHERE EXTRACT(MONTH FROM date) = 4
 
 1. **Team Name:** Always use `'SK Brann'` as the exact team name (case-sensitive)
 
-    For every other team, always use `dim_teams` to find the exact `team_name` before filtering matches or standings. Do not guess a team name from general knowledge. For example, resolve `Rosenborg` to `Rosenborg BK` and `Sarpsborg` to `Sarpsborg 08`.
+    For every other team, always use `dim_teams` to find the exact `team_name` for the requested season before filtering matches or standings. Do not guess a team name from general knowledge. For example, resolve `Rosenborg` to `Rosenborg BK` and `Sarpsborg` to `Sarpsborg 08`.
 
 2. **Winner Values:** Use exact values:
    - `'home_team'` - home team won
@@ -174,7 +192,7 @@ WHERE EXTRACT(MONTH FROM date) = 4
    - Use `home_goals` and `away_goals` columns for numeric comparisons
    - Use `result` column when displaying the score to the user
 
-4. **Matchday:** Matchday 1 is the first round, continues sequentially through the season
+4. **Season and Matchday:** `season` is the calendar year of the Eliteserien season. Matchday 1 starts again every season, so always filter or partition by `season` when using `matchday`, league position, or cumulative standings. For current-season questions, use `season = (SELECT MAX(season) FROM fct_matches)`.
 
 5. **Dates:** Dates are stored in DATE format. Use appropriate date filtering if needed
 
@@ -186,7 +204,7 @@ WHERE EXTRACT(MONTH FROM date) = 4
 
 7. **Always Order Results:**
    - For match queries: use `ORDER BY date DESC` (most recent first)
-   - For standings: use `ORDER BY matchday DESC` or `ORDER BY position`
+    - For standings: use `ORDER BY season DESC, matchday DESC` or `ORDER BY position`
 
 ---
 
@@ -211,13 +229,13 @@ WHERE (home_team = 'SK Brann' OR away_team = 'SK Brann')
 ```
 
 ### Q: What is Brann's current record?
-Use `fct_league_standings` with the maximum matchday for the latest round.
+Use `fct_league_standings` for the maximum `season`, then the maximum `matchday` within that season.
 
 ### Q: How does Brann compare to another team?
-Query `fct_league_standings` for both teams at the same matchday.
+Query `fct_league_standings` for both teams in the same `season` and matchday.
 
 ### Q: Show me Brann's results this season
-Query `fct_matches` where home_team or away_team is 'SK Brann', ordered by date.
+Query `fct_matches` for the maximum `season`, where home_team or away_team is 'SK Brann', ordered by date.
 
 ---
 
