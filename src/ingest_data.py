@@ -5,7 +5,10 @@ import duckdb
 import polars as pl
 
 from config import DB_PATH, ELITESERIEN_SEASONS, SCRAPE_DELAY_SECONDS
-from utils import scrape_eliteserien_results_for_seasons
+from utils import (
+    scrape_eliteserien_goal_scorers_for_seasons,
+    scrape_eliteserien_results_for_seasons,
+)
 
 
 def ingest_eliteserien_results(
@@ -29,5 +32,30 @@ def ingest_eliteserien_results(
     print(f"✓ Ingested {len(data)} Eliteserien records")
 
 
+def ingest_eliteserien_goal_scorers(
+    seasons: Sequence[tuple[int, int]],
+    delay_seconds: float = SCRAPE_DELAY_SECONDS,
+) -> None:
+    """Ingest one goal-scorer row per goal for several Eliteserien seasons."""
+    print(f"Fetching goal scorers for {len(seasons)} Eliteserien season(s)...")
+    data = scrape_eliteserien_goal_scorers_for_seasons(
+        list(seasons),
+        delay_seconds=delay_seconds,
+    )
+
+    df = pl.DataFrame(data).with_columns(
+        pl.lit(datetime.now()).alias("ingested_at")
+    )
+
+    with duckdb.connect(str(DB_PATH)) as connection:
+        connection.execute("DROP TABLE IF EXISTS raw_eliteserien_goal_scorers")
+        connection.execute(
+            "CREATE TABLE raw_eliteserien_goal_scorers AS SELECT * FROM df"
+        )
+
+    print(f"✓ Ingested {len(data)} Eliteserien goal-scorer records")
+
+
 if __name__ == "__main__":
     ingest_eliteserien_results(ELITESERIEN_SEASONS)
+    ingest_eliteserien_goal_scorers(ELITESERIEN_SEASONS)

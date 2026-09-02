@@ -430,15 +430,10 @@ def scrape_goal_scorers(report_url: str | None) -> list[dict[str, str]]:
             continue
 
         event_url = urljoin(report_url, event["data-content"])
-        event_response = requests.get(
-            event_url,
-            headers={
-                "User-Agent": REQUEST_HEADERS["User-Agent"],
-                "X-Requested-With": "XMLHttpRequest",
-            },
-            timeout=30,
-        )
-        event_response.raise_for_status()
+        event_response = _get_goal_event(event_url)
+        if event_response is None:
+            print(f"Skipping unavailable goal event: {event_url}")
+            continue
         event_soup = BeautifulSoup(event_response.text, "html.parser")
         team_image = event_soup.select_one(".sb-tt-verein img[title]")
         scorer = event_soup.select_one(".sb-tt-spielername a")
@@ -452,6 +447,27 @@ def scrape_goal_scorers(report_url: str | None) -> list[dict[str, str]]:
             )
 
     return scorers
+
+
+def _get_goal_event(url: str, max_attempts: int = 3) -> requests.Response | None:
+    """Fetch a goal-event fragment, retrying transient Transfermarkt failures."""
+    for attempt in range(max_attempts):
+        try:
+            response = requests.get(
+                url,
+                headers={
+                    "User-Agent": REQUEST_HEADERS["User-Agent"],
+                    "X-Requested-With": "XMLHttpRequest",
+                },
+                timeout=30,
+            )
+            response.raise_for_status()
+            return response
+        except requests.RequestException:
+            if attempt < max_attempts - 1:
+                sleep(2 ** attempt)
+
+    return None
 
 
 def scrape_brann_goal_scorers(
