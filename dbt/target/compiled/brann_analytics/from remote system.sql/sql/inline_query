@@ -1,0 +1,1 @@
+select season, matchday, total_points, position from fct_league_standings where team = 'SK Brann' and matchday = 1 order by season

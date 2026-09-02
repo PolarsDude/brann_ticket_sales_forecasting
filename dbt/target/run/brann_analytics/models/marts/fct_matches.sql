@@ -12,6 +12,7 @@
 -- Each row is one match with home and away team stats
 
 select
+    season,
     date,
     matchday,
     home_team,
@@ -28,7 +29,7 @@ select
     snapshot_at,
     ingested_at
 from "brann"."main"."raw_eliteserien_results"
-order by date, matchday
+order by season, date, matchday
     );
     
   

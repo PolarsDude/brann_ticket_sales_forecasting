@@ -3,20 +3,20 @@
 -- Canonical team names available in each Eliteserien season.
 with teams as (
     select
-        extract(year from date)::integer as season_year,
+        season,
         home_team as team_name
     from {{ ref('fct_matches') }}
 
     union
 
     select
-        extract(year from date)::integer as season_year,
+        season,
         away_team as team_name
     from {{ ref('fct_matches') }}
 )
 
 select
-    season_year,
+    season,
     team_name
 from teams
-order by season_year, team_name
+order by season, team_name

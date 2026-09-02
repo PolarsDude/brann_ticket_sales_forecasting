@@ -4,6 +4,7 @@
 -- Each row is one match with home and away team stats
 
 select
+    season,
     date,
     matchday,
     home_team,
@@ -20,4 +21,4 @@ select
     snapshot_at,
     ingested_at
 from {{ source('raw', 'raw_eliteserien_results') }}
-order by date, matchday
+order by season, date, matchday
