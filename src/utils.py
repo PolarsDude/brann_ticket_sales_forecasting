@@ -397,6 +397,7 @@ def scrape_eliteserien_goal_scorers_for_seasons(
     for index, (season_id, year) in enumerate(seasons):
         if index:
             sleep(delay_seconds)
+        print(f"Fetching goal scorers for season {year} (ID: {season_id})...")
         all_goal_scorers.extend(
             scrape_eliteserien_goal_scorers(
                 season_id=season_id,

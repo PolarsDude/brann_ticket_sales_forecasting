@@ -14,4 +14,4 @@ ELITESERIEN_SEASONS = [
 	(season_id, season_id + 1)
 	for season_id in range(2014, 2026)
 ]
-SCRAPE_DELAY_SECONDS = 3
+SCRAPE_DELAY_SECONDS = 1
