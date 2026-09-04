@@ -7,6 +7,8 @@ sources:
     tables:
       - name: raw_eliteserien_results
         description: Raw Eliteserien match results (season, date, matchday, home_team, away_team, result, snapshot_at, ingested_at)
+      - name: raw_eliteserien_goal_scorers
+        description: Raw goal-scoring events from Eliteserien match reports
 
 models:
   - name: dim_teams
@@ -62,3 +64,25 @@ models:
         description: "Cumulative goal difference (goals_for - goals_against)"
       - name: position
         description: "Team's position in the league table after this matchday"
+
+  - name: fct_goal_scorers
+    description: "One row per recorded goal in an Eliteserien match."
+    columns:
+      - name: season
+        description: "Calendar year of the Eliteserien season"
+      - name: date
+        description: "Date of the match"
+      - name: matchday
+        description: "The round number in the season"
+      - name: home_team
+        description: "Home team"
+      - name: away_team
+        description: "Away team"
+      - name: result
+        description: "Final score of the match"
+      - name: scorer_team
+        description: "Team credited with the goal"
+      - name: scorer_name
+        description: "Player credited with the goal"
+      - name: ingested_at
+        description: "Timestamp when the record was loaded into DuckDB"

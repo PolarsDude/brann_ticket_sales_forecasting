@@ -74,6 +74,27 @@ This returns `Rosenborg BK`. Use that exact value when querying `fct_matches` or
 
 ---
 
+### 4. fct_goal_scorers
+**Description:** One row per recorded goal in an Eliteserien match. Use this table for questions about scorers, goals per player, and scoring teams.
+
+**Columns:**
+- `season` (INTEGER): Calendar year of the Eliteserien season.
+- `date` (DATE): Date of the match.
+- `matchday` (INTEGER): The round number in the season.
+- `home_team` (VARCHAR): Home team.
+- `away_team` (VARCHAR): Away team.
+- `result` (VARCHAR): Final score, in the format `X:Y`.
+- `scorer_team` (VARCHAR): Team credited with the goal.
+- `scorer_name` (VARCHAR): Player credited with the goal.
+- `ingested_at` (TIMESTAMP): When the record was loaded into DuckDB.
+
+**Key Features:**
+- One row represents one goal, so use `COUNT(*)` to count goals.
+- Filter on `scorer_team` to find a team's goals or its top scorers.
+- Includes all Eliteserien seasons loaded by the ingestion pipeline.
+
+---
+
 ## Sample Queries
 
 ### Get Last 5 Brann Matches
@@ -173,6 +194,18 @@ WHERE season = 2026
             (home_team = 'SK Brann' AND winner = 'home_team')
             OR (away_team = 'SK Brann' AND winner = 'away_team')
     )
+```
+
+### Brann's Top Scorers in a Season
+```sql
+SELECT
+    scorer_name,
+    COUNT(*) AS goals
+FROM fct_goal_scorers
+WHERE season = 2026
+    AND scorer_team = 'SK Brann'
+GROUP BY scorer_name
+ORDER BY goals DESC, scorer_name
 ```
 
 ---
