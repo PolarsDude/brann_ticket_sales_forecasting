@@ -229,13 +229,15 @@ ORDER BY goals DESC, scorer_name
 
 5. **Dates:** Dates are stored in DATE format. Use appropriate date filtering if needed
 
-6. **DuckDB Syntax:**
+6. **Qualify Ambiguous Columns:** When joining tables or CTEs that share column names, always use table names or aliases to qualify those columns in both `SELECT` and `WHERE` clauses. For example, use `matches.season` instead of `season` when joining `fct_matches` with a CTE that also contains `season`.
+
+7. **DuckDB Syntax:**
    - Use standard SQL syntax
    - `LIMIT` clause for limiting results
    - Use `DESC` for descending order, `ASC` for ascending (default)
    - Subqueries are fully supported
 
-7. **Always Order Results:**
+8. **Always Order Results:**
    - For match queries: use `ORDER BY date DESC` (most recent first)
     - For standings: use `ORDER BY season DESC, matchday DESC` or `ORDER BY position`
 
