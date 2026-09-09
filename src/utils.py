@@ -845,10 +845,12 @@ def _extract_period_stats_flat(
     payload: dict[str, Any],
     period: str = "ALL",
     allowed_keys: set[str] | None = None,
+    field_suffix: str = "",
 ) -> dict[str, Any]:
     """Flatten all statistics items for one SofaScore period.
 
-    Output keys are prefixed as home_<stat> and away_<stat>.
+    Output keys are prefixed as home_<stat> and away_<stat>. A period suffix
+    such as ``_1st`` or ``_2nd`` can be added to distinguish halves.
     """
     periods = payload.get("statistics", [])
     selected_period = next(
@@ -879,8 +881,8 @@ def _extract_period_stats_flat(
                 suffix += 1
             used_keys.add(key)
 
-            flat_stats[f"home_{key}"] = item.get("homeValue")
-            flat_stats[f"away_{key}"] = item.get("awayValue")
+            flat_stats[f"home_{key}{field_suffix}"] = item.get("homeValue")
+            flat_stats[f"away_{key}{field_suffix}"] = item.get("awayValue")
 
     return flat_stats
 
@@ -991,11 +993,25 @@ def _scrape_sofascore_all_xg_impl(match_url: str, timeout_seconds: int = 30) -> 
         browser.close()
 
     xg = _extract_xg_from_stats_payload(payload)
-    all_stats_flat = _extract_period_stats_flat(
-        payload,
-        period="ALL",
-        allowed_keys=SOFASCORE_ALL_REQUESTED_KEYS,
-    )
+    all_stats_flat = {
+        **_extract_period_stats_flat(
+            payload,
+            period="ALL",
+            allowed_keys=SOFASCORE_ALL_REQUESTED_KEYS,
+        ),
+        **_extract_period_stats_flat(
+            payload,
+            period="1ST",
+            allowed_keys=SOFASCORE_ALL_REQUESTED_KEYS,
+            field_suffix="_1st",
+        ),
+        **_extract_period_stats_flat(
+            payload,
+            period="2ND",
+            allowed_keys=SOFASCORE_ALL_REQUESTED_KEYS,
+            field_suffix="_2nd",
+        ),
+    }
     event = event_payload.get("event", {})
     start_timestamp = int(event.get("startTimestamp", 0))
     event_date = (
@@ -1128,11 +1144,25 @@ def _scrape_eliteserien_all_xg_for_season_impl(
 
                 stats_payload = _fetch_sofascore_json(page, f"/api/v1/event/{event_id}/statistics")
                 xg_breakdown = _extract_xg_breakdown_from_stats_payload(stats_payload)
-                all_stats_flat = _extract_period_stats_flat(
-                    stats_payload,
-                    period="ALL",
-                    allowed_keys=SOFASCORE_ALL_REQUESTED_KEYS,
-                )
+                all_stats_flat = {
+                    **_extract_period_stats_flat(
+                        stats_payload,
+                        period="ALL",
+                        allowed_keys=SOFASCORE_ALL_REQUESTED_KEYS,
+                    ),
+                    **_extract_period_stats_flat(
+                        stats_payload,
+                        period="1ST",
+                        allowed_keys=SOFASCORE_ALL_REQUESTED_KEYS,
+                        field_suffix="_1st",
+                    ),
+                    **_extract_period_stats_flat(
+                        stats_payload,
+                        period="2ND",
+                        allowed_keys=SOFASCORE_ALL_REQUESTED_KEYS,
+                        field_suffix="_2nd",
+                    ),
+                }
 
                 home_xg_all = xg_breakdown["home_xg_all"]
                 away_xg_all = xg_breakdown["away_xg_all"]
