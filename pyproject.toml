@@ -10,6 +10,7 @@ dependencies = [
     "langchain-openai>=1.0.0",
     "langgraph>=1.0.0",
     "openai>=2.0.0",
+    "playwright>=1.55.0",
     "polars",
     "polars_ds",
     "pyarrow>=25.0.1",

@@ -1,8 +1,9 @@
 """LangGraph text-to-SQL agent for the Brann analytics database.
 
-Run with: uv run python src/agent.py "How many points does Brann have?"
+Run with: uv run python -m src.agent "How many points does Brann have?"
 Set OPENAI_API_KEY before running.
 """
+import json
 import re
 import sys
 from typing import TypedDict
@@ -27,6 +28,7 @@ FORBIDDEN_KEYWORDS = re.compile(
     r"pragma|replace|truncate|vacuum)\b",
     re.IGNORECASE,
 )
+MAX_TASKS = 4
 
 load_dotenv(PROJECT_ROOT / ".env")
 
@@ -35,6 +37,11 @@ class AgentState(TypedDict):
     """Data passed between the LangGraph nodes."""
 
     question: str
+    tasks: list[str]
+    task_index: int
+    generated_sqls: list[str]
+    collected_results: list[dict[str, object]]
+    current_task: str
     sql: str
     columns: list[str]
     rows: list[tuple]
@@ -43,8 +50,47 @@ class AgentState(TypedDict):
     attempts: int
 
 
+def plan_tasks(state: AgentState) -> dict[str, object]:
+    """Split the user request into a small set of report tasks."""
+    instructions = f"""You create an analysis plan for a DuckDB SQL agent.
+
+Goal: split the user's request into 1-{MAX_TASKS} concrete, answerable tasks.
+
+Rules:
+- Keep tasks focused and non-overlapping.
+- If one SQL query is enough, return exactly one task.
+- Keep every task in Norwegian.
+- Return ONLY valid JSON with this shape:
+  {{"tasks": ["task 1", "task 2"]}}
+"""
+    model = ChatOpenAI(model="gpt-4.1", temperature=0)
+    response = model.invoke(f"{instructions}\nBrukerspørsmål: {state['question']}")
+
+    tasks: list[str]
+    try:
+        parsed = json.loads(str(response.content))
+        raw_tasks = parsed.get("tasks", []) if isinstance(parsed, dict) else []
+        tasks = [str(task).strip() for task in raw_tasks if str(task).strip()]
+    except json.JSONDecodeError:
+        tasks = []
+
+    if not tasks:
+        tasks = [state["question"]]
+
+    tasks = tasks[:MAX_TASKS]
+    return {
+        "tasks": tasks,
+        "task_index": 0,
+        "generated_sqls": [],
+        "collected_results": [],
+        "current_task": tasks[0],
+        "sql_error": "",
+        "attempts": 0,
+    }
+
+
 def generate_sql(state: AgentState) -> dict[str, str]:
-    """LangChain node that translates the question into one SQL query."""
+    """LangChain node that translates one task into one SQL query."""
     guide = GUIDE_PATH.read_text(encoding="utf-8")
     instructions = f"""You translate questions about SK Brann into DuckDB SQL.
 
@@ -63,11 +109,13 @@ filter. Never invent, guess, or use an external variant of a team name.
         error_feedback = f"""\nThe previous SQL failed with this error:
 {state['sql_error']}
 Generate a corrected query that avoids the error.\n"""
+    current_task = state["tasks"][state["task_index"]]
     response = model.invoke(
-        f"{instructions}{error_feedback}\nQuestion: {state['question']}"
+        f"{instructions}{error_feedback}\nQuestion: {current_task}"
     )
     sql = str(response.content)
     return {
+        "current_task": current_task,
         "sql": sql.removeprefix("```sql").removeprefix("```").removesuffix("```").strip(),
         "attempts": state.get("attempts", 0) + 1,
     }
@@ -116,16 +164,58 @@ def execute_sql(state: AgentState) -> dict[str, object]:
     return {"columns": columns, "rows": rows, "sql_error": ""}
 
 
+def collect_result(state: AgentState) -> dict[str, object]:
+    """Store one task result and advance to the next task."""
+    collected_results = list(state.get("collected_results", []))
+    generated_sqls = list(state.get("generated_sqls", []))
+    limited_rows = state["rows"][:30]
+
+    collected_results.append(
+        {
+            "task": state["current_task"],
+            "sql": state["sql"],
+            "columns": state["columns"],
+            "rows": limited_rows,
+            "truncated": len(state["rows"]) > len(limited_rows),
+        }
+    )
+    generated_sqls.append(state["sql"])
+
+    next_index = state["task_index"] + 1
+    next_task = state["tasks"][next_index] if next_index < len(state["tasks"]) else ""
+    return {
+        "collected_results": collected_results,
+        "generated_sqls": generated_sqls,
+        "task_index": next_index,
+        "current_task": next_task,
+        "sql_error": "",
+        "attempts": 0,
+    }
+
+
 def summarize_results(state: AgentState) -> dict[str, str]:
-    """Turn the query result into a concise answer to the user's question."""
-    if not state["rows"]:
+    """Turn all task results into one concise report."""
+    if not state.get("collected_results"):
         return {"summary": "Jeg fant ingen resultater for spørsmålet."}
 
-    result_text = "\n".join(
-        f"{', '.join(state['columns'])}: {row}" for row in state["rows"]
-    )
+    blocks: list[str] = []
+    for index, result in enumerate(state["collected_results"], start=1):
+        columns = result.get("columns", [])
+        rows = result.get("rows", [])
+        columns_text = ", ".join(columns) if isinstance(columns, list) else ""
+        row_lines = "\n".join(str(row) for row in rows)
+        truncated_note = "\n[Resultatet er avkortet til de første 30 radene.]" if result.get("truncated") else ""
+        blocks.append(
+            f"Del {index}: {result.get('task', '')}\n"
+            f"SQL: {result.get('sql', '')}\n"
+            f"Kolonner: {columns_text}\n"
+            f"Rader:\n{row_lines if row_lines else '[Ingen rader]'}{truncated_note}"
+        )
+
+    result_text = "\n\n".join(blocks)
     instructions = f"""Svar kort på norsk på brukerens spørsmål.
-Oppsummer resultatet i vanlig tekst, ikke som en tabell.
+Skriv en kort rapport i vanlig tekst, ikke som tabell.
+Strukturer rapporten med en kort innledning, 2-4 funn og en kort konklusjon.
 Ikke gjett eller legg til informasjon som ikke finnes i resultatet.
 Spørsmål: {state['question']}
 
@@ -138,21 +228,34 @@ SQL-resultat:
 
 
 workflow = StateGraph(AgentState)
+workflow.add_node("plan_tasks", plan_tasks)
 workflow.add_node("generate_sql", generate_sql)
 workflow.add_node("execute_sql", execute_sql)
+workflow.add_node("collect_result", collect_result)
 workflow.add_node("summarize_results", summarize_results)
-workflow.add_edge(START, "generate_sql")
+workflow.add_edge(START, "plan_tasks")
+workflow.add_edge("plan_tasks", "generate_sql")
 workflow.add_edge("generate_sql", "execute_sql")
 
 
 def route_after_execution(state: AgentState) -> str:
     """Retry failed SQL once; otherwise continue to the answer step."""
-    return "generate_sql" if state.get("sql_error") else "summarize_results"
+    return "generate_sql" if state.get("sql_error") else "collect_result"
+
+
+def route_after_collection(state: AgentState) -> str:
+    """Continue with the next task or finish with a summary."""
+    return "generate_sql" if state["task_index"] < len(state["tasks"]) else "summarize_results"
 
 
 workflow.add_conditional_edges(
     "execute_sql",
     route_after_execution,
+    {"generate_sql": "generate_sql", "collect_result": "collect_result"},
+)
+workflow.add_conditional_edges(
+    "collect_result",
+    route_after_collection,
     {"generate_sql": "generate_sql", "summarize_results": "summarize_results"},
 )
 workflow.add_edge("summarize_results", END)
@@ -162,11 +265,13 @@ agent = workflow.compile()
 def run_question(question: str) -> None:
     result = agent.invoke({"question": question})
 
-    print("SQL:\n" + result["sql"])
+    sqls = result.get("generated_sqls") or [result.get("sql", "")]
+    for index, sql in enumerate(sqls, start=1):
+        print(f"SQL {index}:\n{sql}\n")
     print("\nSammendrag:\n" + result["summary"])
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        raise SystemExit('Bruk: uv run python src/agent.py "Hvor mange poeng har Brann?"')
+        raise SystemExit('Bruk: uv run python -m src.agent "Hvor mange poeng har Brann?"')
     run_question(" ".join(sys.argv[1:]))
