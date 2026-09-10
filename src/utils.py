@@ -812,10 +812,16 @@ def _extract_xg_item_from_period(payload: dict[str, Any], period: str) -> dict[s
 
 
 def _extract_xg_breakdown_from_stats_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    """Extract xG for ALL, first half and second half from SofaScore payload."""
+    """Extract xG, retaining available total values when halves are missing."""
     all_item = _extract_xg_item_from_period(payload, "ALL")
-    first_item = _extract_xg_item_from_period(payload, "1ST")
-    second_item = _extract_xg_item_from_period(payload, "2ND")
+    try:
+        first_item = _extract_xg_item_from_period(payload, "1ST")
+    except RuntimeError:
+        first_item = {}
+    try:
+        second_item = _extract_xg_item_from_period(payload, "2ND")
+    except RuntimeError:
+        second_item = {}
 
     return {
         "home_xg_all": all_item.get("homeValue"),
@@ -840,6 +846,7 @@ def _extract_period_stats_flat(
     period: str = "ALL",
     allowed_keys: set[str] | None = None,
     field_suffix: str = "",
+    required: bool = True,
 ) -> dict[str, Any]:
     """Flatten all statistics items for one SofaScore period.
 
@@ -852,6 +859,8 @@ def _extract_period_stats_flat(
         None,
     )
     if selected_period is None:
+        if not required:
+            return {}
         raise RuntimeError(f"Fant ikke statistikksiden for perioden {period} i SofaScore-responsen.")
 
     flat_stats: dict[str, Any] = {}
@@ -998,12 +1007,14 @@ def _scrape_sofascore_all_xg_impl(match_url: str, timeout_seconds: int = 30) -> 
             period="1ST",
             allowed_keys=SOFASCORE_ALL_REQUESTED_KEYS,
             field_suffix="_1st",
+            required=False,
         ),
         **_extract_period_stats_flat(
             payload,
             period="2ND",
             allowed_keys=SOFASCORE_ALL_REQUESTED_KEYS,
             field_suffix="_2nd",
+            required=False,
         ),
     }
     event = event_payload.get("event", {})
@@ -1168,7 +1179,22 @@ def _scrape_eliteserien_all_xg_for_season_impl(
                     raise RuntimeError("Manglende slug/customId for SofaScore event.")
 
                 stats_payload = _fetch_sofascore_json(page, f"/api/v1/event/{event_id}/statistics")
-                xg_breakdown = _extract_xg_breakdown_from_stats_payload(stats_payload)
+                try:
+                    xg_breakdown = _extract_xg_breakdown_from_stats_payload(
+                        stats_payload
+                    )
+                except RuntimeError as error:
+                    print(
+                        f"No xG for {home_team} vs {away_team} ({match_date}): {error}"
+                    )
+                    xg_breakdown = {
+                        "home_xg_all": None,
+                        "away_xg_all": None,
+                        "home_xg_1st": None,
+                        "away_xg_1st": None,
+                        "home_xg_2nd": None,
+                        "away_xg_2nd": None,
+                    }
                 all_stats_flat = {
                     **_extract_period_stats_flat(
                         stats_payload,
@@ -1180,12 +1206,14 @@ def _scrape_eliteserien_all_xg_for_season_impl(
                         period="1ST",
                         allowed_keys=SOFASCORE_ALL_REQUESTED_KEYS,
                         field_suffix="_1st",
+                        required=False,
                     ),
                     **_extract_period_stats_flat(
                         stats_payload,
                         period="2ND",
                         allowed_keys=SOFASCORE_ALL_REQUESTED_KEYS,
                         field_suffix="_2nd",
+                        required=False,
                     ),
                 }
 

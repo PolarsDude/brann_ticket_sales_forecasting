@@ -96,7 +96,7 @@ This returns `Rosenborg BK`. Use that exact value when querying `fct_matches` or
 ---
 
 ### 5. fct_match_xg
-**Description:** One row per completed Eliteserien match with expected-goals (xG) and selected SofaScore match statistics. Use this table for questions about chance quality, xG differences, and match statistics. The data is produced by `scrape_eliteserien_all_xg_for_seasons` and must be loaded into DuckDB before the agent can query it.
+**Description:** One row per completed Eliteserien match with optional expected-goals (xG) and selected SofaScore match statistics. Use this table for questions about chance quality, xG differences, and match statistics. The data is produced by `scrape_eliteserien_all_xg_for_seasons` and must be loaded into DuckDB before the agent can query it.
 
 **Columns:**
 - `season` (INTEGER): Calendar year of the Eliteserien season.
@@ -128,6 +128,8 @@ This returns `Rosenborg BK`. Use that exact value when querying `fct_matches` or
 **Key Features:**
 - xG fields are team-relative: `home_*` always belongs to `home_team`, and `away_*` to `away_team`.
 - xG is stored only as numeric `*_all`, `*_1st`, and `*_2nd` values; no duplicate `*_display` columns are available.
+- Older matches can have match statistics without xG; in those rows, xG fields are NULL while available statistics are retained.
+- When SofaScore provides total xG but lacks one or both half-periods, `*_xg_all` is retained and only the missing `*_xg_1st` or `*_xg_2nd` fields are NULL.
 - The source may omit a selected statistic; treat NULL as unavailable, not zero.
 
 ---

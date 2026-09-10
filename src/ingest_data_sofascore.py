@@ -5,7 +5,7 @@ from typing import Sequence
 import duckdb
 import polars as pl
 
-from config import CURRENT_ELITESERIEN_SEASON, DB_PATH, SCRAPE_DELAY_SECONDS
+from config import CURRENT_ELITESERIEN_SEASON, DB_PATH, SCRAPE_DELAY_SECONDS,ELITESERIEN_SEASONS
 from utils import scrape_eliteserien_all_xg_for_seasons
 
 
@@ -52,4 +52,5 @@ def ingest_eliteserien_xg(
 
 if __name__ == "__main__":
     current_season = [CURRENT_ELITESERIEN_SEASON]
-    ingest_eliteserien_xg(current_season)
+    #ingest_eliteserien_xg(current_season)
+    ingest_eliteserien_xg(ELITESERIEN_SEASONS)
