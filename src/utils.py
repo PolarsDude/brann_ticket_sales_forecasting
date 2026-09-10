@@ -824,12 +824,6 @@ def _extract_xg_breakdown_from_stats_payload(payload: dict[str, Any]) -> dict[st
         "away_xg_1st": first_item.get("awayValue"),
         "home_xg_2nd": second_item.get("homeValue"),
         "away_xg_2nd": second_item.get("awayValue"),
-        "home_xg_all_display": all_item.get("home"),
-        "away_xg_all_display": all_item.get("away"),
-        "home_xg_1st_display": first_item.get("home"),
-        "away_xg_1st_display": first_item.get("away"),
-        "home_xg_2nd_display": second_item.get("home"),
-        "away_xg_2nd_display": second_item.get("away"),
     }
 
 
@@ -1080,6 +1074,37 @@ def scrape_eliteserien_all_xg_for_season(
     )
 
 
+def scrape_eliteserien_all_xg_for_seasons(
+    seasons: list[tuple[int, int]],
+    delay_seconds: float = 0.2,
+    season_delay_seconds: float = 2.0,
+    timeout_seconds: int = 30,
+) -> list[dict[str, Any]]:
+    """Return ALL-tab xG for completed matches across several seasons.
+
+    Each item in ``seasons`` is a ``(season_id, year)`` pair. The scraper
+    pauses between match requests and between seasons.
+    """
+    if delay_seconds < 0 or season_delay_seconds < 0:
+        raise ValueError("Forsinkelse kan ikke være negativ.")
+
+    all_xg_rows: list[dict[str, Any]] = []
+    for index, (season_id, year) in enumerate(seasons):
+        if index:
+            sleep(season_delay_seconds)
+        print(f"Fetching xG for season {year} (ID: {season_id})...")
+        all_xg_rows.extend(
+            scrape_eliteserien_all_xg_for_season(
+                season_id=season_id,
+                year=year,
+                delay_seconds=delay_seconds,
+                timeout_seconds=timeout_seconds,
+            )
+        )
+
+    return all_xg_rows
+
+
 def _scrape_eliteserien_all_xg_for_season_impl(
     season_id: int = 2025,
     year: int = 2026,
@@ -1183,22 +1208,12 @@ def _scrape_eliteserien_all_xg_for_season_impl(
                         "sofascore_url": (
                             f"https://www.sofascore.com/no/football/match/{slug}/{custom_id}#id:{event_id}"
                         ),
-                        "home_xg": home_xg_all,
-                        "away_xg": away_xg_all,
-                        "home_xg_display": xg_breakdown["home_xg_all_display"],
-                        "away_xg_display": xg_breakdown["away_xg_all_display"],
                         "home_xg_all": home_xg_all,
                         "away_xg_all": away_xg_all,
                         "home_xg_1st": home_xg_1st,
                         "away_xg_1st": away_xg_1st,
                         "home_xg_2nd": home_xg_2nd,
                         "away_xg_2nd": away_xg_2nd,
-                        "home_xg_all_display": xg_breakdown["home_xg_all_display"],
-                        "away_xg_all_display": xg_breakdown["away_xg_all_display"],
-                        "home_xg_1st_display": xg_breakdown["home_xg_1st_display"],
-                        "away_xg_1st_display": xg_breakdown["away_xg_1st_display"],
-                        "home_xg_2nd_display": xg_breakdown["home_xg_2nd_display"],
-                        "away_xg_2nd_display": xg_breakdown["away_xg_2nd_display"],
                         "snapshot_at": snapshot_at,
                         **all_stats_flat,
                     }

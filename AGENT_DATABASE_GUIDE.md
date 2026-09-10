@@ -95,6 +95,43 @@ This returns `Rosenborg BK`. Use that exact value when querying `fct_matches` or
 
 ---
 
+### 5. fct_match_xg
+**Description:** One row per completed Eliteserien match with expected-goals (xG) and selected SofaScore match statistics. Use this table for questions about chance quality, xG differences, and match statistics. The data is produced by `scrape_eliteserien_all_xg_for_seasons` and must be loaded into DuckDB before the agent can query it.
+
+**Columns:**
+- `season` (INTEGER): Calendar year of the Eliteserien season.
+- `date` (DATE): Date of the match.
+- `matchday` (INTEGER): The round number in the season.
+- `home_team` (VARCHAR): Name of the home team.
+- `away_team` (VARCHAR): Name of the away team.
+- `result` (VARCHAR): Final score in the format `X:Y`.
+- `sofascore_event_id` (INTEGER): SofaScore's unique event identifier.
+- `sofascore_url` (VARCHAR): URL for the SofaScore match.
+- `home_xg_all` / `away_xg_all` (DOUBLE): Total expected goals (ALL tab) for the home and away team.
+- `home_xg_1st` / `away_xg_1st` (DOUBLE): Expected goals in the first half.
+- `home_xg_2nd` / `away_xg_2nd` (DOUBLE): Expected goals in the second half.
+- `home_ballpossession` / `away_ballpossession` (DOUBLE): Ball possession percentage.
+- `home_kilometerscovered` / `away_kilometerscovered` (DOUBLE): Distance covered in kilometres; total match only.
+- `home_bigchancecreated` / `away_bigchancecreated` (INTEGER): Big chances created.
+- `home_totalshotsongoal` / `away_totalshotsongoal` (INTEGER): Shots on target.
+- `home_goalkeepersaves` / `away_goalkeepersaves` (INTEGER): Goalkeeper saves.
+- `home_numberofsprints` / `away_numberofsprints` (INTEGER): Number of sprints; total match only.
+- `home_cornerkicks` / `away_cornerkicks` (INTEGER): Corner kicks.
+- `home_fouls` / `away_fouls` (INTEGER): Fouls committed.
+- `home_freekicks` / `away_freekicks` (INTEGER): Free kicks.
+- `home_passes` / `away_passes` (INTEGER): Completed passes.
+- `home_totaltackle` / `away_totaltackle` (INTEGER): Tackles.
+- `home_yellowcards` / `away_yellowcards` (INTEGER): Yellow cards.
+- xG, ball possession, big chances created, shots on target, goalkeeper saves, corner kicks, fouls, free kicks, passes, tackles, and yellow cards also have `_1st` and `_2nd` fields for the first and second half. For example, `home_fouls_1st` and `home_fouls_2nd`.
+- `snapshot_at` (TIMESTAMP): When the xG and match-statistics data was fetched from SofaScore.
+
+**Key Features:**
+- xG fields are team-relative: `home_*` always belongs to `home_team`, and `away_*` to `away_team`.
+- xG is stored only as numeric `*_all`, `*_1st`, and `*_2nd` values; no duplicate `*_display` columns are available.
+- The source may omit a selected statistic; treat NULL as unavailable, not zero.
+
+---
+
 ## Sample Queries
 
 ### Get Last 5 Brann Matches
@@ -279,6 +316,7 @@ Query `fct_matches` for the maximum `season`, where home_team or away_team is 'S
 - **Data last ingested:** Check the `ingested_at` timestamp in the tables
 - **Snapshot time:** The `snapshot_at` field indicates when data was fetched from the web
 - To refresh data, run: `uv run python src/ingest_data.py`
+- To refresh SofaScore xG data, run: `uv run python src/ingest_data_sofascore.py`
 
 ---
 
