@@ -95,7 +95,7 @@ This returns `Rosenborg BK`. Use that exact value when querying `fct_matches` or
 
 ---
 
-### 5. fct_match_xg
+### 5. fct_match_statistics
 **Description:** One row per completed Eliteserien match with optional expected-goals (xG) and selected SofaScore match statistics. Use this table for questions about chance quality, xG differences, and match statistics. The data is produced by `scrape_eliteserien_all_xg_for_seasons` and must be loaded into DuckDB before the agent can query it.
 
 **Columns:**

@@ -52,5 +52,5 @@ def ingest_eliteserien_xg(
 
 if __name__ == "__main__":
     current_season = [CURRENT_ELITESERIEN_SEASON]
-    #ingest_eliteserien_xg(current_season)
-    ingest_eliteserien_xg(ELITESERIEN_SEASONS)
+    ingest_eliteserien_xg(current_season)
+    #ingest_eliteserien_xg(ELITESERIEN_SEASONS)
