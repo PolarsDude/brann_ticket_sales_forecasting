@@ -9,6 +9,8 @@ sources:
         description: Raw Eliteserien match results (season, date, matchday, home_team, away_team, result, snapshot_at, ingested_at)
       - name: raw_eliteserien_goal_scorers
         description: Raw goal-scoring events from Eliteserien match reports
+      - name: raw_match_statistics
+        description: Raw match statistics from Eliteserien match reports, such as possession, shots, and fouls, xg etc.
 
 models:
   - name: dim_teams
@@ -86,3 +88,47 @@ models:
         description: "Player credited with the goal"
       - name: ingested_at
         description: "Timestamp when the record was loaded into DuckDB"
+
+  - name: fct_match_statistics
+    description: "One row per match with the raw event-by-event match statistics collected from SofaScore, including possession, shots, expected goals, fouls, corners, and other match-level metrics. This table is used as the detailed statistical layer before downstream analysis or aggregation."
+    columns:
+      - name: season
+        description: "Calendar year of the Eliteserien season"
+      - name: date
+        description: "Date when the match was played"
+      - name: matchday
+        description: "The round number in the season"
+      - name: home_team
+        description: "Home team name"
+      - name: away_team
+        description: "Away team name"
+      - name: result
+        description: "Final score of the match in the form 'X:Y'"
+      - name: home_xg_all
+        description: "Expected goals for the home team across the full match"
+      - name: away_xg_all
+        description: "Expected goals for the away team across the full match"
+      - name: home_xg_1st
+        description: "Expected goals for the home team in the first half"
+      - name: away_xg_1st
+        description: "Expected goals for the away team in the first half"
+      - name: home_xg_2nd
+        description: "Expected goals for the home team in the second half"
+      - name: away_xg_2nd
+        description: "Expected goals for the away team in the second half"
+      - name: possession_home
+        description: "Home team's possession share in percent"
+      - name: possession_away
+        description: "Away team's possession share in percent"
+      - name: shots_home
+        description: "Total shots taken by the home team"
+      - name: shots_away
+        description: "Total shots taken by the away team"
+      - name: fouls_home
+        description: "Number of fouls committed by the home team"
+      - name: fouls_away
+        description: "Number of fouls committed by the away team"
+      - name: ingested_at
+        description: "Timestamp when the data was loaded into DuckDB"
+
+ 
