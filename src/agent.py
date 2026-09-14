@@ -22,6 +22,7 @@ ALLOWED_TABLES = {
     "fct_matches",
     "fct_goal_scorers",
     "fct_league_standings",
+    "fct_match_statistics",
 }
 FORBIDDEN_KEYWORDS = re.compile(
     r"\b(attach|copy|create|delete|drop|export|insert|install|load|update|"
@@ -29,6 +30,7 @@ FORBIDDEN_KEYWORDS = re.compile(
     re.IGNORECASE,
 )
 MAX_TASKS = 4
+MAX_SQL_ATTEMPTS = 5
 
 load_dotenv(PROJECT_ROOT / ".env")
 
@@ -129,9 +131,19 @@ def validate_sql(sql: str) -> None:
     if ";" in normalized or FORBIDDEN_KEYWORDS.search(normalized):
         raise ValueError("Agenten returnerte en ikke tillatt SQL-spørring.")
 
+    table_scan_sql = re.sub(
+        r"\bextract\s*\([^)]*\)",
+        "",
+        normalized,
+        flags=re.IGNORECASE,
+    )
     referenced_tables = set(
         match.lower()
-        for match in re.findall(r"\b(?:from|join)\s+([a-zA-Z_][a-zA-Z0-9_]*)", normalized, re.IGNORECASE)
+        for match in re.findall(
+            r"\b(?:from|join)\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+            table_scan_sql,
+            re.IGNORECASE,
+        )
     )
     cte_names = set(
         match.lower()
@@ -144,6 +156,11 @@ def validate_sql(sql: str) -> None:
     if not referenced_tables or not referenced_tables.issubset(ALLOWED_TABLES | cte_names):
         raise ValueError("Spørringen bruker en tabell som agenten ikke har tilgang til.")
 
+    # Validate against the actual DuckDB schema before execution so invalid column
+    # names are rejected early instead of only failing at runtime.
+    with duckdb.connect(str(DB_PATH), read_only=True) as connection:
+        connection.execute(f"EXPLAIN {normalized}")
+
 
 def execute_sql(state: AgentState) -> dict[str, object]:
     """LangGraph node that validates and executes the generated SQL."""
@@ -155,9 +172,10 @@ def execute_sql(state: AgentState) -> dict[str, object]:
             columns = [column[0] for column in result.description]
             rows = result.fetchall()
     except (ValueError, duckdb.Error) as error:
-        if state.get("attempts", 0) >= 2:
+        if state.get("attempts", 0) >= MAX_SQL_ATTEMPTS:
             raise RuntimeError(
-                f"SQL-spørringen kunne ikke valideres eller kjøres etter to forsøk: {error}"
+                f"SQL-spørringen kunne ikke valideres eller kjøres etter "
+                f"{MAX_SQL_ATTEMPTS} forsøk: {error}"
             ) from error
         return {"sql_error": str(error), "columns": [], "rows": []}
 
@@ -239,7 +257,7 @@ workflow.add_edge("generate_sql", "execute_sql")
 
 
 def route_after_execution(state: AgentState) -> str:
-    """Retry failed SQL once; otherwise continue to the answer step."""
+    """Retry failed SQL until the attempt limit; otherwise continue."""
     return "generate_sql" if state.get("sql_error") else "collect_result"
 
 
