@@ -1,5 +1,6 @@
 from __future__ import annotations
 import asyncio
+import json
 import polars as pl
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from collections import Counter
@@ -773,6 +774,38 @@ def _find_sofascore_event(
     raise RuntimeError(f"Fant ingen SofaScore-resultater for lagene {home_team} og {away_team}.")
 
 
+def _find_sofascore_event_in_browser(
+    home_team: str,
+    away_team: str,
+    match_date: date,
+    timeout_seconds: int = 30,
+) -> dict[str, Any]:
+    """Find one SofaScore event in a short-lived browser context."""
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError as error:
+        raise RuntimeError(
+            "Playwright mangler. Installer med 'uv add playwright' og kjør "
+            "'uv run playwright install chromium'."
+        ) from error
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        context = browser.new_context(
+            user_agent=REQUEST_HEADERS["User-Agent"],
+            locale="nb-NO",
+        )
+        page = context.new_page()
+        page.goto(
+            "https://www.sofascore.com",
+            wait_until="domcontentloaded",
+            timeout=timeout_seconds * 1000,
+        )
+        event = _find_sofascore_event(page, home_team, away_team, match_date)
+        browser.close()
+        return event
+
+
 def _extract_xg_from_stats_payload(payload: dict[str, Any]) -> dict[str, Any]:
     """Extract expected goals from period ALL in SofaScore statistics payload."""
     expected_goals_item = _extract_xg_item_from_period(payload, "ALL")
@@ -1259,3 +1292,302 @@ def _scrape_eliteserien_all_xg_for_season_impl(
         browser.close()
 
     return xg_rows
+
+
+def scrape_sofascore_player_statistics(
+    event_id: int,
+    timeout_seconds: int = 30,
+) -> list[dict[str, Any]]:
+    """Return every player's SofaScore statistics for one completed match."""
+    return _run_blocking_safely(
+        _scrape_sofascore_player_statistics_impl,
+        event_id,
+        timeout_seconds,
+    )
+
+
+def _scrape_sofascore_player_statistics_impl(
+    event_id: int,
+    timeout_seconds: int = 30,
+) -> list[dict[str, Any]]:
+    """Fetch and flatten the player rows from SofaScore's lineups endpoint."""
+    if event_id <= 0:
+        raise ValueError("event_id må være større enn 0.")
+    if timeout_seconds <= 0:
+        raise ValueError("timeout_seconds må være større enn 0.")
+
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError as error:
+        raise RuntimeError(
+            "Playwright mangler. Installer med 'uv add playwright' og kjør "
+            "'uv run playwright install chromium'."
+        ) from error
+
+    snapshot_at = datetime.now(timezone.utc)
+    rows: list[dict[str, Any]] = []
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        context = browser.new_context(
+            user_agent=REQUEST_HEADERS["User-Agent"],
+            locale="nb-NO",
+        )
+        page = context.new_page()
+        page.goto(
+            "https://www.sofascore.com",
+            wait_until="domcontentloaded",
+            timeout=timeout_seconds * 1000,
+        )
+        event_payload = _fetch_sofascore_json(page, f"/api/v1/event/{event_id}")
+        event_payload = event_payload.get("event", event_payload)
+        event_date = datetime.fromtimestamp(
+            int(event_payload["startTimestamp"]),
+            tz=timezone.utc,
+        ).date()
+        event_season = (event_payload.get("season") or {}).get("year")
+        event_matchday = (event_payload.get("roundInfo") or {}).get("round")
+        event_home_team = (event_payload.get("homeTeam") or {}).get("name")
+        event_away_team = (event_payload.get("awayTeam") or {}).get("name")
+        payload = _fetch_sofascore_json(page, f"/api/v1/event/{event_id}/lineups")
+        for side in ("home", "away"):
+            lineup = payload.get(side) or {}
+            team = event_payload.get(f"{side}Team") or {}
+            for player_row in lineup.get("players", []):
+                player = player_row.get("player") or {}
+                statistics = player_row.get("statistics") or {}
+                accurate_pass = statistics.get("accuratePass")
+                total_pass = statistics.get("totalPass")
+                pass_accuracy = (
+                    round(100 * accurate_pass / total_pass, 1)
+                    if isinstance(accurate_pass, (int, float))
+                    and isinstance(total_pass, (int, float))
+                    and total_pass
+                    else None
+                )
+                row: dict[str, Any] = {
+                    "sofascore_event_id": event_id,
+                    "date": event_date,
+                    "season": int(event_season) if event_season is not None else None,
+                    "matchday": event_matchday,
+                    "home_team": event_home_team,
+                    "away_team": event_away_team,
+                    "home_or_away": side,
+                    "team_id": team.get("id") or lineup.get("teamId"),
+                    "team_name": team.get("name"),
+                    "player_id": player.get("id"),
+                    "player_name": player.get("name"),
+                    "player_slug": player.get("slug"),
+                    "player_position": player.get("position"),
+                    "player_short_name": player.get("shortName"),
+                    "shirt_number": player_row.get("shirtNumber"),
+                    "jersey_number": player_row.get("jerseyNumber"),
+                    "captain": player_row.get("captain"),
+                    "player_substitute": player_row.get("substitute"),
+                    "goals": statistics.get("goals"),
+                    "assists": statistics.get("goalAssist"),
+                    "tackles_won": statistics.get("wonTackle"),
+                    "duels_won": statistics.get("duelWon"),
+                    "duels_lost": statistics.get("duelLost"),
+                    "ground_duels_won": statistics.get("groundDuelsWon"),
+                    "ground_duels_lost": statistics.get("groundDuelsLost"),
+                    "aerial_won": statistics.get("aerialWon"),
+                    "aerial_lost": statistics.get("aerialLost"),
+                    "accurate_pass": accurate_pass,
+                    "total_pass": total_pass,
+                    "pass_accuracy": pass_accuracy,
+                    "player_statistics": json.dumps(
+                        statistics,
+                        ensure_ascii=True,
+                        sort_keys=True,
+                    ),
+                    "snapshot_at": snapshot_at,
+                }
+                row.update(
+                    {
+                        f"stat_{key}": (
+                            json.dumps(value, ensure_ascii=True, sort_keys=True)
+                            if isinstance(value, (dict, list))
+                            else value
+                        )
+                        for key, value in statistics.items()
+                    }
+                )
+                rows.append(row)
+
+        browser.close()
+
+    return rows
+
+
+def scrape_sofascore_general_player_statistics(
+    event_id: int,
+    timeout_seconds: int = 30,
+) -> list[dict[str, Any]]:
+    """Return only the player-statistics columns shown under SofaScore General."""
+    rows = scrape_sofascore_player_statistics(
+        event_id=event_id,
+        timeout_seconds=timeout_seconds,
+    )
+    general_columns = {
+        "date",
+        "season",
+        "matchday",
+        "home_team",
+        "away_team",
+        "sofascore_event_id",
+        "home_or_away",
+        "team_id",
+        "team_name",
+        "player_id",
+        "player_name",
+        "player_slug",
+        "player_position",
+        "player_short_name",
+        "shirt_number",
+        "jersey_number",
+        "captain",
+        "player_substitute",
+        "goals",
+        "assists",
+        "tackles_won",
+        "accurate_pass",
+        "total_pass",
+        "pass_accuracy",
+        "duels_won",
+        "duels_lost",
+        "ground_duels_won",
+        "ground_duels_lost",
+        "aerial_won",
+        "aerial_lost",
+        "stat_rating",
+        "snapshot_at",
+    }
+    return [
+        {key: value for key, value in row.items() if key in general_columns}
+        for row in rows
+    ]
+
+
+def scrape_eliteserien_general_player_statistics_for_season(
+    season_id: int = 2025,
+    year: int = 2026,
+    delay_seconds: float = 0.2,
+    timeout_seconds: int = 30,
+) -> list[dict[str, Any]]:
+    """Return only General player statistics for every match in one season."""
+    rows = scrape_eliteserien_player_statistics_for_season(
+        season_id=season_id,
+        year=year,
+        delay_seconds=delay_seconds,
+        timeout_seconds=timeout_seconds,
+    )
+    general_keys = {
+        "season", "date", "matchday", "home_team", "away_team", "result",
+        "sofascore_event_id", "home_or_away", "team_id", "team_name",
+        "player_id", "player_name", "player_slug", "player_position",
+        "player_short_name", "shirt_number", "jersey_number", "captain",
+        "player_substitute", "goals", "assists", "tackles_won",
+        "accurate_pass", "total_pass", "pass_accuracy", "duels_won",
+        "duels_lost", "ground_duels_won", "ground_duels_lost", "aerial_won",
+        "aerial_lost", "stat_rating", "snapshot_at",
+    }
+    return [{key: value for key, value in row.items() if key in general_keys} for row in rows]
+
+
+def scrape_eliteserien_general_player_statistics_for_seasons(
+    seasons: list[tuple[int, int]],
+    delay_seconds: float = 0.2,
+    season_delay_seconds: float = 2.0,
+    timeout_seconds: int = 30,
+) -> list[dict[str, Any]]:
+    """Return only General player statistics across several seasons."""
+    rows = scrape_eliteserien_player_statistics_for_seasons(
+        seasons=seasons,
+        delay_seconds=delay_seconds,
+        season_delay_seconds=season_delay_seconds,
+        timeout_seconds=timeout_seconds,
+    )
+    general_keys = {
+        "season", "date", "matchday", "home_team", "away_team", "result",
+        "sofascore_event_id", "home_or_away", "team_id", "team_name",
+        "player_id", "player_name", "player_slug", "player_position",
+        "player_short_name", "shirt_number", "jersey_number", "captain",
+        "player_substitute", "goals", "assists", "tackles_won",
+        "accurate_pass", "total_pass", "pass_accuracy", "duels_won",
+        "duels_lost", "ground_duels_won", "ground_duels_lost", "aerial_won",
+        "aerial_lost", "stat_rating", "snapshot_at",
+    }
+    return [{key: value for key, value in row.items() if key in general_keys} for row in rows]
+
+
+def scrape_eliteserien_player_statistics_for_season(
+    season_id: int = 2025,
+    year: int = 2026,
+    delay_seconds: float = 0.2,
+    timeout_seconds: int = 30,
+) -> list[dict[str, Any]]:
+    """Return player statistics for every completed match in one season."""
+    return scrape_eliteserien_player_statistics_for_seasons(
+        seasons=[(season_id, year)],
+        delay_seconds=delay_seconds,
+        timeout_seconds=timeout_seconds,
+    )
+
+
+def scrape_eliteserien_player_statistics_for_seasons(
+    seasons: list[tuple[int, int]],
+    delay_seconds: float = 0.2,
+    season_delay_seconds: float = 2.0,
+    timeout_seconds: int = 30,
+) -> list[dict[str, Any]]:
+    """Return player statistics for completed matches across several seasons."""
+    if delay_seconds < 0 or season_delay_seconds < 0:
+        raise ValueError("Forsinkelse kan ikke være negativ.")
+
+    all_rows: list[dict[str, Any]] = []
+    for season_index, (season_id, year) in enumerate(seasons):
+        if season_index:
+            sleep(season_delay_seconds)
+        matches = scrape_eliteserien_results(season_id=season_id, year=year)
+        for match_index, match in enumerate(matches):
+            if match_index:
+                sleep(delay_seconds)
+            match_date = match.get("date")
+            if not isinstance(match_date, date):
+                continue
+
+            home_team = str(match.get("home_team", ""))
+            away_team = str(match.get("away_team", ""))
+            try:
+                event = _run_blocking_safely(
+                    _find_sofascore_event_in_browser,
+                    home_team,
+                    away_team,
+                    match_date,
+                    timeout_seconds,
+                )
+                event_id = int(event["id"])
+                player_rows = scrape_sofascore_player_statistics(
+                    event_id=event_id,
+                    timeout_seconds=timeout_seconds,
+                )
+                for row in player_rows:
+                    row.update(
+                        {
+                            "season": year,
+                            "date": match_date,
+                            "matchday": match.get("matchday"),
+                            "home_team": home_team,
+                            "away_team": away_team,
+                            "result": match.get("result"),
+                        }
+                    )
+                all_rows.extend(player_rows)
+                print(
+                    f"Done {match_index + 1}/{len(matches)} | season={year} | "
+                    f"{home_team} vs {away_team} | players={len(player_rows)}"
+                )
+            except RuntimeError as error:
+                print(f"Skipping {home_team} vs {away_team} ({match_date}): {error}")
+
+    return all_rows
