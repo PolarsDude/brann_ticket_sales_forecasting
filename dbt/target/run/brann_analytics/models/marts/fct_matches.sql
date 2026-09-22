@@ -13,7 +13,7 @@
 -- Raw results live in one table per season (raw_eliteserien_results_<season>)
 
 with raw_eliteserien_results as (
-    
+   
 
 
 

@@ -1,4 +1,9 @@
 {{ config(materialized='table') }}
 
-SELECT *
-FROM {{ source('raw', 'raw_match_statistics') }}
+
+with final as (
+   {{ union_tables_by_prefix('raw_match_statistics') }}
+)
+
+select *
+from final

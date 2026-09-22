@@ -5,7 +5,7 @@
 -- Raw results live in one table per season (raw_eliteserien_results_<season>)
 
 with raw_eliteserien_results as (
-    {{ union_raw_eliteserien_results() }}
+   {{ union_tables_by_prefix('raw_eliteserien_results_') }}
 )
 
 select
