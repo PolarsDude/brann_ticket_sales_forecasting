@@ -2,6 +2,11 @@
 
 -- Match results with parsed goals and winner information
 -- Each row is one match with home and away team stats
+-- Raw results live in one table per season (raw_eliteserien_results_<season>)
+
+with raw_eliteserien_results as (
+    {{ union_raw_eliteserien_results() }}
+)
 
 select
     season,
@@ -20,5 +25,5 @@ select
     end as winner,
     snapshot_at,
     ingested_at
-from {{ source('raw', 'raw_eliteserien_results') }}
+from raw_eliteserien_results
 order by season, date, matchday

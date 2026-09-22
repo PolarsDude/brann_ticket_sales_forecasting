@@ -10,6 +10,43 @@
 
 -- Match results with parsed goals and winner information
 -- Each row is one match with home and away team stats
+-- Raw results live in one table per season (raw_eliteserien_results_<season>)
+
+with raw_eliteserien_results as (
+    
+
+
+
+
+
+    
+    
+
+
+
+
+
+select * from "raw_eliteserien_results_2021"
+union all
+
+select * from "raw_eliteserien_results_2022"
+union all
+
+select * from "raw_eliteserien_results_2023"
+union all
+
+select * from "raw_eliteserien_results_2024"
+union all
+
+select * from "raw_eliteserien_results_2025"
+union all
+
+select * from "raw_eliteserien_results_2026"
+
+
+
+
+)
 
 select
     season,
@@ -28,7 +65,7 @@ select
     end as winner,
     snapshot_at,
     ingested_at
-from "brann"."main"."raw_eliteserien_results"
+from raw_eliteserien_results
 order by season, date, matchday
     );
     

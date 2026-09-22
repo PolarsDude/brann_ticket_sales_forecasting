@@ -1462,10 +1462,9 @@ def scrape_sofascore_general_player_statistics(
         "stat_rating",
         "snapshot_at",
     }
-    return [
-        {key: value for key, value in row.items() if key in general_columns}
-        for row in rows
-    ]
+    # Use .get() instead of a membership filter so every row keeps the same
+    # fixed columns (as None) even when a season/match is missing a stat key.
+    return [{key: row.get(key) for key in general_columns} for row in rows]
 
 
 def scrape_eliteserien_general_player_statistics_for_season(
@@ -1491,7 +1490,9 @@ def scrape_eliteserien_general_player_statistics_for_season(
         "duels_lost", "ground_duels_won", "ground_duels_lost", "aerial_won",
         "aerial_lost", "stat_rating", "snapshot_at",
     }
-    return [{key: value for key, value in row.items() if key in general_keys} for row in rows]
+    # Use .get() instead of a membership filter so every row keeps the same
+    # fixed columns (as None) even when a season/match is missing a stat key.
+    return [{key: row.get(key) for key in general_keys} for row in rows]
 
 
 def scrape_eliteserien_general_player_statistics_for_seasons(
@@ -1517,7 +1518,9 @@ def scrape_eliteserien_general_player_statistics_for_seasons(
         "duels_lost", "ground_duels_won", "ground_duels_lost", "aerial_won",
         "aerial_lost", "stat_rating", "snapshot_at",
     }
-    return [{key: value for key, value in row.items() if key in general_keys} for row in rows]
+    # Use .get() instead of a membership filter so every row keeps the same
+    # fixed columns (as None) even when a season/match is missing a stat key.
+    return [{key: row.get(key) for key in general_keys} for row in rows]
 
 
 def scrape_eliteserien_player_statistics_for_season(
