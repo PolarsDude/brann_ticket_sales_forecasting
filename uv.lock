@@ -105,7 +105,6 @@ dependencies = [
     { name = "playwright" },
     { name = "polars" },
     { name = "polars-ds" },
-    { name = "pre-commit" },
     { name = "pyarrow" },
     { name = "python-dotenv" },
     { name = "requests" },
@@ -114,6 +113,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "ipykernel" },
+    { name = "pre-commit" },
 ]
 
 [package.metadata]
@@ -129,14 +129,16 @@ requires-dist = [
     { name = "playwright", specifier = ">=1.55.0" },
     { name = "polars" },
     { name = "polars-ds" },
-    { name = "pre-commit", specifier = ">=4.6.2" },
     { name = "pyarrow", specifier = ">=25.0.1" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "requests" },
 ]
 
 [package.metadata.requires-dev]
-dev = [{ name = "ipykernel", specifier = ">=7.3.0" }]
+dev = [
+    { name = "ipykernel", specifier = ">=7.3.0" },
+    { name = "pre-commit", specifier = ">=4.6.2" },
+]
 
 [[package]]
 name = "certifi"
