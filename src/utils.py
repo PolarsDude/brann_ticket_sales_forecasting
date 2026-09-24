@@ -2,6 +2,7 @@ from __future__ import annotations
 import asyncio
 import json
 import polars as pl
+import random
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from collections import Counter
 from datetime import date, datetime, timezone
@@ -670,34 +671,56 @@ def _parse_optional_match_date(match_date: date | datetime | str | None) -> date
         ) from error
 
 
-def _fetch_sofascore_json(page: Any, path: str) -> dict[str, Any]:
-    """Fetch SofaScore JSON within browser context to avoid direct-request 403."""
-    response = page.evaluate(
-        """async (apiPath) => {
-            const url = `https://www.sofascore.com${apiPath}`;
-            const response = await fetch(url, {
-                credentials: 'include',
-                headers: { accept: 'application/json' },
-            });
-            const raw = await response.text();
-            let data = null;
-            try {
-                data = JSON.parse(raw);
-            } catch (error) {
-                data = null;
-            }
-            return { ok: response.ok, status: response.status, data, raw };
-        }""",
-        path,
-    )
-    if not response.get("ok"):
-        raise RuntimeError(
-            f"SofaScore API svarte med {response.get('status')} for {path}."
+def _fetch_sofascore_json(
+    page: Any,
+    path: str,
+    max_retries: int = 4,
+    initial_delay_seconds: float = 5.0,
+) -> dict[str, Any]:
+    """Fetch SofaScore JSON within browser context to avoid direct-request 403.
+
+    Retries with exponential backoff (plus jitter) when SofaScore responds
+    with 403, since that status is typically a temporary rate-limit block
+    rather than a permanent failure.
+    """
+    last_status: int | None = None
+    for attempt in range(max_retries + 1):
+        response = page.evaluate(
+            """async (apiPath) => {
+                const url = `https://www.sofascore.com${apiPath}`;
+                const response = await fetch(url, {
+                    credentials: 'include',
+                    headers: { accept: 'application/json' },
+                });
+                const raw = await response.text();
+                let data = null;
+                try {
+                    data = JSON.parse(raw);
+                } catch (error) {
+                    data = null;
+                }
+                return { ok: response.ok, status: response.status, data, raw };
+            }""",
+            path,
         )
-    payload = response.get("data")
-    if not isinstance(payload, dict):
-        raise RuntimeError(f"Ugyldig JSON-format fra SofaScore for {path}.")
-    return payload
+        if response.get("ok"):
+            payload = response.get("data")
+            if not isinstance(payload, dict):
+                raise RuntimeError(f"Ugyldig JSON-format fra SofaScore for {path}.")
+            return payload
+
+        last_status = response.get("status")
+        if last_status != 403 or attempt == max_retries:
+            break
+
+        backoff = initial_delay_seconds * (2 ** attempt) + random.uniform(0, 2)
+        print(
+            f"SofaScore 403 for {path} (forsøk {attempt + 1}/{max_retries + 1}), "
+            f"venter {backoff:.1f}s før nytt forsøk..."
+        )
+        sleep(backoff)
+
+    raise RuntimeError(f"SofaScore API svarte med {last_status} for {path}.")
 
 
 def _select_sofascore_event(
@@ -1324,8 +1347,6 @@ def _scrape_sofascore_player_statistics_impl(
             "'uv run playwright install chromium'."
         ) from error
 
-    snapshot_at = datetime.now(timezone.utc)
-    rows: list[dict[str, Any]] = []
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         context = browser.new_context(
@@ -1338,83 +1359,98 @@ def _scrape_sofascore_player_statistics_impl(
             wait_until="domcontentloaded",
             timeout=timeout_seconds * 1000,
         )
-        event_payload = _fetch_sofascore_json(page, f"/api/v1/event/{event_id}")
-        event_payload = event_payload.get("event", event_payload)
-        event_date = datetime.fromtimestamp(
-            int(event_payload["startTimestamp"]),
-            tz=timezone.utc,
-        ).date()
-        event_season = (event_payload.get("season") or {}).get("year")
-        event_matchday = (event_payload.get("roundInfo") or {}).get("round")
-        event_home_team = (event_payload.get("homeTeam") or {}).get("name")
-        event_away_team = (event_payload.get("awayTeam") or {}).get("name")
-        payload = _fetch_sofascore_json(page, f"/api/v1/event/{event_id}/lineups")
-        for side in ("home", "away"):
-            lineup = payload.get(side) or {}
-            team = event_payload.get(f"{side}Team") or {}
-            for player_row in lineup.get("players", []):
-                player = player_row.get("player") or {}
-                statistics = player_row.get("statistics") or {}
-                accurate_pass = statistics.get("accuratePass")
-                total_pass = statistics.get("totalPass")
-                pass_accuracy = (
-                    round(100 * accurate_pass / total_pass, 1)
-                    if isinstance(accurate_pass, (int, float))
-                    and isinstance(total_pass, (int, float))
-                    and total_pass
-                    else None
-                )
-                row: dict[str, Any] = {
-                    "sofascore_event_id": event_id,
-                    "date": event_date,
-                    "season": int(event_season) if event_season is not None else None,
-                    "matchday": event_matchday,
-                    "home_team": event_home_team,
-                    "away_team": event_away_team,
-                    "home_or_away": side,
-                    "team_id": team.get("id") or lineup.get("teamId"),
-                    "team_name": team.get("name"),
-                    "player_id": player.get("id"),
-                    "player_name": player.get("name"),
-                    "player_slug": player.get("slug"),
-                    "player_position": player.get("position"),
-                    "player_short_name": player.get("shortName"),
-                    "shirt_number": player_row.get("shirtNumber"),
-                    "jersey_number": player_row.get("jerseyNumber"),
-                    "captain": player_row.get("captain"),
-                    "player_substitute": player_row.get("substitute"),
-                    "goals": statistics.get("goals"),
-                    "assists": statistics.get("goalAssist"),
-                    "tackles_won": statistics.get("wonTackle"),
-                    "duels_won": statistics.get("duelWon"),
-                    "duels_lost": statistics.get("duelLost"),
-                    "ground_duels_won": statistics.get("groundDuelsWon"),
-                    "ground_duels_lost": statistics.get("groundDuelsLost"),
-                    "aerial_won": statistics.get("aerialWon"),
-                    "aerial_lost": statistics.get("aerialLost"),
-                    "accurate_pass": accurate_pass,
-                    "total_pass": total_pass,
-                    "pass_accuracy": pass_accuracy,
-                    "player_statistics": json.dumps(
-                        statistics,
-                        ensure_ascii=True,
-                        sort_keys=True,
-                    ),
-                    "snapshot_at": snapshot_at,
-                }
-                row.update(
-                    {
-                        f"stat_{key}": (
-                            json.dumps(value, ensure_ascii=True, sort_keys=True)
-                            if isinstance(value, (dict, list))
-                            else value
-                        )
-                        for key, value in statistics.items()
-                    }
-                )
-                rows.append(row)
-
+        rows = _fetch_sofascore_player_statistics_rows(page, event_id)
         browser.close()
+
+    return rows
+
+
+def _fetch_sofascore_player_statistics_rows(page: Any, event_id: int) -> list[dict[str, Any]]:
+    """Fetch and flatten player rows for one event using an already-open page.
+
+    Reusing one page/browser across many matches (instead of relaunching
+    Chromium per match) drastically cuts the number of requests SofaScore
+    sees in a short window, which is the main driver of 403 rate-limit
+    responses during long scraping runs.
+    """
+    snapshot_at = datetime.now(timezone.utc)
+    rows: list[dict[str, Any]] = []
+
+    event_payload = _fetch_sofascore_json(page, f"/api/v1/event/{event_id}")
+    event_payload = event_payload.get("event", event_payload)
+    event_date = datetime.fromtimestamp(
+        int(event_payload["startTimestamp"]),
+        tz=timezone.utc,
+    ).date()
+    event_season = (event_payload.get("season") or {}).get("year")
+    event_matchday = (event_payload.get("roundInfo") or {}).get("round")
+    event_home_team = (event_payload.get("homeTeam") or {}).get("name")
+    event_away_team = (event_payload.get("awayTeam") or {}).get("name")
+    payload = _fetch_sofascore_json(page, f"/api/v1/event/{event_id}/lineups")
+    for side in ("home", "away"):
+        lineup = payload.get(side) or {}
+        team = event_payload.get(f"{side}Team") or {}
+        for player_row in lineup.get("players", []):
+            player = player_row.get("player") or {}
+            statistics = player_row.get("statistics") or {}
+            accurate_pass = statistics.get("accuratePass")
+            total_pass = statistics.get("totalPass")
+            pass_accuracy = (
+                round(100 * accurate_pass / total_pass, 1)
+                if isinstance(accurate_pass, (int, float))
+                and isinstance(total_pass, (int, float))
+                and total_pass
+                else None
+            )
+            row: dict[str, Any] = {
+                "sofascore_event_id": event_id,
+                "date": event_date,
+                "season": int(event_season) if event_season is not None else None,
+                "matchday": event_matchday,
+                "home_team": event_home_team,
+                "away_team": event_away_team,
+                "home_or_away": side,
+                "team_id": team.get("id") or lineup.get("teamId"),
+                "team_name": team.get("name"),
+                "player_id": player.get("id"),
+                "player_name": player.get("name"),
+                "player_slug": player.get("slug"),
+                "player_position": player.get("position"),
+                "player_short_name": player.get("shortName"),
+                "shirt_number": player_row.get("shirtNumber"),
+                "jersey_number": player_row.get("jerseyNumber"),
+                "captain": player_row.get("captain"),
+                "player_substitute": player_row.get("substitute"),
+                "goals": statistics.get("goals"),
+                "assists": statistics.get("goalAssist"),
+                "tackles_won": statistics.get("wonTackle"),
+                "duels_won": statistics.get("duelWon"),
+                "duels_lost": statistics.get("duelLost"),
+                "ground_duels_won": statistics.get("groundDuelsWon"),
+                "ground_duels_lost": statistics.get("groundDuelsLost"),
+                "aerial_won": statistics.get("aerialWon"),
+                "aerial_lost": statistics.get("aerialLost"),
+                "accurate_pass": accurate_pass,
+                "total_pass": total_pass,
+                "pass_accuracy": pass_accuracy,
+                "player_statistics": json.dumps(
+                    statistics,
+                    ensure_ascii=True,
+                    sort_keys=True,
+                ),
+                "snapshot_at": snapshot_at,
+            }
+            row.update(
+                {
+                    f"stat_{key}": (
+                        json.dumps(value, ensure_ascii=True, sort_keys=True)
+                        if isinstance(value, (dict, list))
+                        else value
+                    )
+                    for key, value in statistics.items()
+                }
+            )
+            rows.append(row)
 
     return rows
 
@@ -1544,53 +1580,96 @@ def scrape_eliteserien_player_statistics_for_seasons(
     timeout_seconds: int = 30,
 ) -> list[dict[str, Any]]:
     """Return player statistics for completed matches across several seasons."""
+    return _run_blocking_safely(
+        _scrape_eliteserien_player_statistics_for_seasons_impl,
+        seasons,
+        delay_seconds,
+        season_delay_seconds,
+        timeout_seconds,
+    )
+
+
+def _scrape_eliteserien_player_statistics_for_seasons_impl(
+    seasons: list[tuple[int, int]],
+    delay_seconds: float = 0.2,
+    season_delay_seconds: float = 2.0,
+    timeout_seconds: int = 30,
+) -> list[dict[str, Any]]:
+    """Return player statistics for completed matches across several seasons.
+
+    Uses a single Playwright browser/page for the entire run instead of
+    relaunching Chromium per match. Relaunching per match multiplies the
+    number of fresh connections SofaScore sees in a short time window, which
+    was the main cause of 403 rate-limit responses on long scraping runs.
+    """
     if delay_seconds < 0 or season_delay_seconds < 0:
         raise ValueError("Forsinkelse kan ikke være negativ.")
 
-    all_rows: list[dict[str, Any]] = []
-    for season_index, (season_id, year) in enumerate(seasons):
-        if season_index:
-            sleep(season_delay_seconds)
-        matches = scrape_eliteserien_results(season_id=season_id, year=year)
-        for match_index, match in enumerate(matches):
-            if match_index:
-                sleep(delay_seconds)
-            match_date = match.get("date")
-            if not isinstance(match_date, date):
-                continue
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError as error:
+        raise RuntimeError(
+            "Playwright mangler. Installer med 'uv add playwright' og kjør "
+            "'uv run playwright install chromium'."
+        ) from error
 
-            home_team = str(match.get("home_team", ""))
-            away_team = str(match.get("away_team", ""))
-            try:
-                event = _run_blocking_safely(
-                    _find_sofascore_event_in_browser,
-                    home_team,
-                    away_team,
-                    match_date,
-                    timeout_seconds,
-                )
-                event_id = int(event["id"])
-                player_rows = scrape_sofascore_player_statistics(
-                    event_id=event_id,
-                    timeout_seconds=timeout_seconds,
-                )
-                for row in player_rows:
-                    row.update(
-                        {
-                            "season": year,
-                            "date": match_date,
-                            "matchday": match.get("matchday"),
-                            "home_team": home_team,
-                            "away_team": away_team,
-                            "result": match.get("result"),
-                        }
+    all_rows: list[dict[str, Any]] = []
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        context = browser.new_context(
+            user_agent=REQUEST_HEADERS["User-Agent"],
+            locale="nb-NO",
+        )
+        page = context.new_page()
+        page.goto(
+            "https://www.sofascore.com",
+            wait_until="domcontentloaded",
+            timeout=timeout_seconds * 1000,
+        )
+
+        for season_index, (season_id, year) in enumerate(seasons):
+            if season_index:
+                sleep(season_delay_seconds)
+            matches = scrape_eliteserien_results(season_id=season_id, year=year)
+            for match_index, match in enumerate(matches):
+                if match_index:
+                    sleep(delay_seconds)
+                match_date = match.get("date")
+                if not isinstance(match_date, date):
+                    continue
+
+                home_team = str(match.get("home_team", ""))
+                away_team = str(match.get("away_team", ""))
+                try:
+                    event = _find_sofascore_event(
+                        page=page,
+                        home_team=home_team,
+                        away_team=away_team,
+                        match_date=match_date,
                     )
-                all_rows.extend(player_rows)
-                print(
-                    f"Done {match_index + 1}/{len(matches)} | season={year} | "
-                    f"{home_team} vs {away_team} | players={len(player_rows)}"
-                )
-            except RuntimeError as error:
-                print(f"Skipping {home_team} vs {away_team} ({match_date}): {error}")
+                    event_id = int(event["id"])
+                    player_rows = _fetch_sofascore_player_statistics_rows(page, event_id)
+                    for row in player_rows:
+                        row.update(
+                            {
+                                "season": year,
+                                "date": match_date,
+                                "matchday": match.get("matchday"),
+                                "home_team": home_team,
+                                "away_team": away_team,
+                                "result": match.get("result"),
+                            }
+                        )
+                    all_rows.extend(player_rows)
+                    print(
+                        f"Done {match_index + 1}/{len(matches)} | season={year} | "
+                        f"{home_team} vs {away_team} | players={len(player_rows)}"
+                    )
+                except RuntimeError as error:
+                    print(f"Skipping {home_team} vs {away_team} ({match_date}): {error}")
+
+        browser.close()
+
+    return all_rows
 
     return all_rows
