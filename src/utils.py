@@ -34,6 +34,14 @@ ELITESERIEN_SCHEDULE_URL = (
     "https://www.transfermarkt.com/eliteserien/gesamtspielplan/"
     "wettbewerb/NO1/saison_id/{season_id}"
 )
+ELITESERIEN_STARTSEITE_URL = (
+    "https://www.transfermarkt.com/eliteserien/startseite/"
+    "wettbewerb/NO1/saison_id/{season_id}"
+)
+TRANSFERMARKT_SQUAD_URL = (
+    "https://www.transfermarkt.com/{team_slug}/kader/verein/{team_id}/"
+    "plus/1/saison_id/{season_id}"
+)
 REQUEST_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -1812,6 +1820,231 @@ def scrape_eliteserien_goal_contributions_for_seasons(
                 delay_seconds=delay_seconds,
                 timeout_seconds=timeout_seconds,
             )
+        )
+
+    return all_rows
+
+
+def _parse_market_value_to_eur(market_value_text: str | None) -> float | None:
+    """Convert a Transfermarkt market-value string (e.g. '€1.50m', '€700k') to euros."""
+    if not market_value_text:
+        return None
+
+    match = re.search(r"([\d.,]+)\s*(m|k)?", market_value_text.replace(",", "."))
+    if not match or not match.group(1):
+        return None
+
+    amount = float(match.group(1))
+    unit = (match.group(2) or "").lower()
+    if unit == "m":
+        amount *= 1_000_000
+    elif unit == "k":
+        amount *= 1_000
+
+    return amount
+
+
+def scrape_eliteserien_teams(season_id: int = 2025) -> list[dict[str, Any]]:
+    """Return every club in one Eliteserien season with its Transfermarkt slug and ID."""
+    url = ELITESERIEN_STARTSEITE_URL.format(season_id=season_id)
+    response = requests.get(
+        url,
+        headers={"User-Agent": REQUEST_HEADERS["User-Agent"]},
+        timeout=30,
+    )
+    response.raise_for_status()
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    team_link_pattern = re.compile(r"^/([^/]+)/kader/verein/(\d+)")
+    teams: dict[int, dict[str, Any]] = {}
+
+    for link in soup.select("a[href*='/kader/verein/']"):
+        href = link.get("href", "")
+        match = team_link_pattern.match(href)
+        if not match:
+            continue
+
+        team_slug, team_id_text = match.groups()
+        team_id = int(team_id_text)
+        team_name = link.get("title") or " ".join(link.stripped_strings)
+        if not team_name or team_id in teams:
+            continue
+
+        teams[team_id] = {
+            "season_id": season_id,
+            "team_id": team_id,
+            "team_slug": team_slug,
+            "team_name": team_name,
+        }
+
+    return list(teams.values())
+
+
+def scrape_transfermarkt_squad(
+    team_slug: str,
+    team_id: int,
+    season_id: int = 2025,
+    team_name: str | None = None,
+    timeout_seconds: int = 30,
+) -> list[dict[str, Any]]:
+    """Return every squad player's age, nationality, contract and market value.
+
+    Uses Transfermarkt's detailed squad view (kader/.../plus/1), which lists
+    date of birth, nationality, contract expiry and market value per player.
+    """
+    if timeout_seconds <= 0:
+        raise ValueError("timeout_seconds må være større enn 0.")
+
+    url = TRANSFERMARKT_SQUAD_URL.format(
+        team_slug=team_slug, team_id=team_id, season_id=season_id
+    )
+    response = requests.get(
+        url,
+        headers={"User-Agent": REQUEST_HEADERS["User-Agent"]},
+        timeout=timeout_seconds,
+    )
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, "html.parser")
+    snapshot_at = datetime.now(timezone.utc)
+
+    heading = soup.select_one("h1.data-header__headline-wrapper")
+    resolved_team_name = team_name or (
+        " ".join(heading.stripped_strings) if heading else None
+    )
+
+    birth_age_pattern = re.compile(r"(\d{2}/\d{2}/\d{4})\s*\((\d+)\)")
+    rows: list[dict[str, Any]] = []
+
+    for row in soup.select("table.items > tbody > tr"):
+        cells = row.find_all("td", recursive=False)
+        name_cell = row.select_one("td.posrela")
+        if not cells or name_cell is None:
+            continue
+
+        player_link = name_cell.select_one("td.hauptlink a") or name_cell.select_one("a")
+        if player_link is None:
+            continue
+
+        position_node = name_cell.select_one("table.inline-table tr:nth-of-type(2) td")
+        player_id_match = re.search(r"/spieler/(\d+)", player_link.get("href", ""))
+
+        shirt_number_node = row.select_one("td.rn_nr")
+        shirt_number_text = (
+            " ".join(shirt_number_node.stripped_strings) if shirt_number_node else ""
+        )
+
+        zentriert_cells = row.select("td.zentriert")
+        birth_age_text = next(
+            (
+                " ".join(cell.stripped_strings)
+                for cell in zentriert_cells
+                if birth_age_pattern.search(" ".join(cell.stripped_strings))
+            ),
+            "",
+        )
+        birth_age_match = birth_age_pattern.search(birth_age_text)
+
+        nationality_cell = next(
+            (cell for cell in zentriert_cells if cell.select_one("img.flaggenrahmen")),
+            None,
+        )
+        nationalities = (
+            [
+                img.get("title") or img.get("alt")
+                for img in nationality_cell.select("img.flaggenrahmen")
+                if img.get("title") or img.get("alt")
+            ]
+            if nationality_cell is not None
+            else []
+        )
+
+        contract_until_text = next(
+            (
+                " ".join(cell.stripped_strings)
+                for cell in reversed(zentriert_cells)
+                if re.fullmatch(r"\d{2}/\d{2}/\d{4}", " ".join(cell.stripped_strings))
+            ),
+            None,
+        )
+
+        market_value_node = row.select_one("td.rechts a") or row.select_one("td.rechts")
+        market_value_text = (
+            " ".join(market_value_node.stripped_strings) if market_value_node else None
+        )
+
+        rows.append(
+            {
+                "season_id": season_id,
+                "team_id": team_id,
+                "team_name": resolved_team_name,
+                "shirt_number": (
+                    int(shirt_number_text) if shirt_number_text.isdigit() else None
+                ),
+                "player_name": player_link.get("title")
+                or " ".join(player_link.stripped_strings),
+                "player_id": int(player_id_match.group(1)) if player_id_match else None,
+                "position": " ".join(position_node.stripped_strings)
+                if position_node
+                else None,
+                "date_of_birth": (
+                    datetime.strptime(birth_age_match.group(1), "%d/%m/%Y").date()
+                    if birth_age_match
+                    else None
+                ),
+                "age": int(birth_age_match.group(2)) if birth_age_match else None,
+                "nationality": ", ".join(nationalities) or None,
+                "contract_until": (
+                    datetime.strptime(contract_until_text, "%d/%m/%Y").date()
+                    if contract_until_text
+                    else None
+                ),
+                "market_value_text": market_value_text,
+                "market_value_eur": _parse_market_value_to_eur(market_value_text),
+                "snapshot_at": snapshot_at,
+            }
+        )
+
+    return rows
+
+
+def scrape_eliteserien_squads_for_season(
+    season_id: int = 2025,
+    delay_seconds: float = 2.0,
+    timeout_seconds: int = 30,
+) -> list[dict[str, Any]]:
+    """Return age, nationality, contract and market value for every player on every Eliteserien club."""
+    if delay_seconds < 0:
+        raise ValueError("delay_seconds kan ikke være negativ.")
+    if timeout_seconds <= 0:
+        raise ValueError("timeout_seconds må være større enn 0.")
+
+    teams = scrape_eliteserien_teams(season_id=season_id)
+    all_rows: list[dict[str, Any]] = []
+
+    for index, team in enumerate(teams):
+        if index:
+            sleep(delay_seconds)
+
+        print(
+            f"Scraping squad {index + 1}/{len(teams)} | {team['team_name']}",
+            flush=True,
+        )
+        try:
+            squad_rows = scrape_transfermarkt_squad(
+                team_slug=team["team_slug"],
+                team_id=team["team_id"],
+                season_id=season_id,
+                team_name=team["team_name"],
+                timeout_seconds=timeout_seconds,
+            )
+        except requests.RequestException as error:
+            print(f"Skipping {team['team_name']}: {error}", flush=True)
+            continue
+
+        all_rows.extend(squad_rows)
+        print(
+            f"Done {index + 1}/{len(teams)} | players={len(squad_rows)}",
+            flush=True,
         )
 
     return all_rows

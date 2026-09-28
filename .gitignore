@@ -11,3 +11,8 @@ __pycache__/
 
 # Jupyter temporary files
 .ipynb_checkpoints/
+
+# DuckDB database files (binary, frequently locked by running kernels)
+data/*.duckdb
+data/*.duckdb.wal
+dbt/logs/
