@@ -4,6 +4,7 @@ import json
 import polars as pl
 import random
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 from collections import Counter
 from datetime import date, datetime, timezone
 from html import unescape
@@ -600,8 +601,25 @@ def _run_blocking_safely(func: Any, *args: Any, **kwargs: Any) -> Any:
         return func(*args, **kwargs)
 
     if sys.platform == "win32":
+        print(
+            "Notebook detected on Windows: running scraper in subprocess. "
+            "Live per-match logs from child process are not streamed to the notebook output.",
+            flush=True,
+        )
         with ProcessPoolExecutor(max_workers=1) as executor:
-            return executor.submit(_call_with_args, func, args, kwargs).result()
+            future = executor.submit(_call_with_args, func, args, kwargs)
+            heartbeat_seconds = 15
+            waited_seconds = 0
+            while True:
+                try:
+                    return future.result(timeout=heartbeat_seconds)
+                except FuturesTimeoutError:
+                    waited_seconds += heartbeat_seconds
+                    print(
+                        "Subprocess still scraping... "
+                        f"elapsed={waited_seconds}s",
+                        flush=True,
+                    )
 
     with ThreadPoolExecutor(max_workers=1) as executor:
         return executor.submit(func, *args, **kwargs).result()
@@ -676,6 +694,7 @@ def _fetch_sofascore_json(
     path: str,
     max_retries: int = 4,
     initial_delay_seconds: float = 5.0,
+    timeout_seconds: int = 30,
 ) -> dict[str, Any]:
     """Fetch SofaScore JSON within browser context to avoid direct-request 403.
 
@@ -683,25 +702,38 @@ def _fetch_sofascore_json(
     with 403, since that status is typically a temporary rate-limit block
     rather than a permanent failure.
     """
+    if timeout_seconds <= 0:
+        raise ValueError("timeout_seconds må være større enn 0.")
+
     last_status: int | None = None
     for attempt in range(max_retries + 1):
         response = page.evaluate(
-            """async (apiPath) => {
+            """async ({ apiPath, timeoutMs }) => {
                 const url = `https://www.sofascore.com${apiPath}`;
-                const response = await fetch(url, {
-                    credentials: 'include',
-                    headers: { accept: 'application/json' },
-                });
-                const raw = await response.text();
-                let data = null;
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
                 try {
-                    data = JSON.parse(raw);
+                    const response = await fetch(url, {
+                        credentials: 'include',
+                        headers: { accept: 'application/json' },
+                        signal: controller.signal,
+                    });
+                    const raw = await response.text();
+                    let data = null;
+                    try {
+                        data = JSON.parse(raw);
+                    } catch (error) {
+                        data = null;
+                    }
+                    return { ok: response.ok, status: response.status, data, raw };
                 } catch (error) {
-                    data = null;
+                    return { ok: false, status: 408, data: null, raw: String(error) };
+                } finally {
+                    clearTimeout(timeoutId);
                 }
-                return { ok: response.ok, status: response.status, data, raw };
             }""",
-            path,
+            {"apiPath": path, "timeoutMs": timeout_seconds * 1000},
         )
         if response.get("ok"):
             payload = response.get("data")
@@ -1317,359 +1349,473 @@ def _scrape_eliteserien_all_xg_for_season_impl(
     return xg_rows
 
 
-def scrape_sofascore_player_statistics(
-    event_id: int,
+def scrape_transfermarkt_goal_contributions(
+    report_url: str,
     timeout_seconds: int = 30,
+    match_metadata: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
-    """Return every player's SofaScore statistics for one completed match."""
-    return _run_blocking_safely(
-        _scrape_sofascore_player_statistics_impl,
-        event_id,
-        timeout_seconds,
-    )
-
-
-def _scrape_sofascore_player_statistics_impl(
-    event_id: int,
-    timeout_seconds: int = 30,
-) -> list[dict[str, Any]]:
-    """Fetch and flatten the player rows from SofaScore's lineups endpoint."""
-    if event_id <= 0:
-        raise ValueError("event_id må være større enn 0.")
+    """Return goal contributions and match metadata from one Transfermarkt report."""
     if timeout_seconds <= 0:
         raise ValueError("timeout_seconds må være større enn 0.")
 
-    try:
-        from playwright.sync_api import sync_playwright
-    except ImportError as error:
-        raise RuntimeError(
-            "Playwright mangler. Installer med 'uv add playwright' og kjør "
-            "'uv run playwright install chromium'."
-        ) from error
-
-    with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(headless=True)
-        context = browser.new_context(
-            user_agent=REQUEST_HEADERS["User-Agent"],
-            locale="nb-NO",
+    response = requests.get(
+        report_url,
+        headers={"User-Agent": REQUEST_HEADERS["User-Agent"]},
+        timeout=timeout_seconds,
+    )
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, "html.parser")
+    report_heading = soup.find("h1")
+    report_teams = (
+        " ".join(report_heading.stripped_strings).split(" - ", 1)
+        if report_heading
+        else []
+    )
+    date_match = re.search(
+        r"\b(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),\s*(\d{2}/\d{2}/\d{2})\b",
+        soup.get_text(" ", strip=True),
+    )
+    report_date = (
+        datetime.strptime(date_match.group(1), "%d/%m/%y").date()
+        if date_match
+        else None
+    )
+    metadata = {
+        "season": report_date.year if report_date else None,
+        "date": report_date,
+        "home_team": report_teams[0] if len(report_teams) == 2 else None,
+        "away_team": report_teams[1] if len(report_teams) == 2 else None,
+        "matchday": None,
+        "result": None,
+    }
+    if match_metadata:
+        metadata.update(
+            {
+                key: value
+                for key, value in match_metadata.items()
+                if key in metadata and value is not None
+            }
         )
-        page = context.new_page()
-        page.goto(
-            "https://www.sofascore.com",
-            wait_until="domcontentloaded",
-            timeout=timeout_seconds * 1000,
+
+    goals_heading = next(
+        (
+            heading
+            for heading in soup.find_all("h2")
+            if " ".join(heading.stripped_strings).casefold() == "goals"
+        ),
+        None,
+    )
+    if goals_heading is None:
+        return []
+
+    goals_box = goals_heading.find_parent("div", class_="box")
+    if goals_box is None:
+        return []
+
+    goal_rows: list[dict[str, Any]] = []
+    for event in goals_box.select(".sb-ereignisse li"):
+        action = event.select_one(".sb-aktion-aktion")
+        if action is None:
+            continue
+
+        player_links = action.select("a.wichtig")
+        if not player_links:
+            continue
+
+        scorer = player_links[0]
+        assist = player_links[1] if "Assist:" in action.get_text(" ", strip=True) and len(player_links) > 1 else None
+        team_link = event.select_one(".sb-aktion-wappen a[title]")
+        score = event.select_one(".sb-aktion-spielstand b")
+        side_classes = event.get("class", [])
+        if "sb-aktion-heim" in side_classes:
+            home_or_away = "home"
+        elif "sb-aktion-gast" in side_classes:
+            home_or_away = "away"
+        else:
+            home_or_away = None
+
+        scorer_id_match = re.search(r"/spieler/(\d+)", scorer.get("href", ""))
+        assist_id_match = (
+            re.search(r"/spieler/(\d+)", assist.get("href", ""))
+            if assist is not None
+            else None
         )
-        rows = _fetch_sofascore_player_statistics_rows(page, event_id)
-        browser.close()
+        goal_rows.append(
+            {
+                **metadata,
+                "scorer_name": scorer.get("title") or " ".join(scorer.stripped_strings),
+                "scorer_player_id": int(scorer_id_match.group(1)) if scorer_id_match else None,
+                "assist_name": (
+                    assist.get("title") or " ".join(assist.stripped_strings)
+                    if assist is not None
+                    else None
+                ),
+                "assist_player_id": int(assist_id_match.group(1)) if assist_id_match else None,
+                "scorer_team": team_link.get("title") if team_link else None,
+                "home_or_away": home_or_away,
+                "score": " ".join(score.stripped_strings) if score else None,
+                "report_url": report_url,
+            }
+        )
 
-    return rows
+    return goal_rows
 
 
-def _fetch_sofascore_player_statistics_rows(page: Any, event_id: int) -> list[dict[str, Any]]:
-    """Fetch and flatten player rows for one event using an already-open page.
+def scrape_transfermarkt_lineups(
+    report_url: str,
+    timeout_seconds: int = 30,
+) -> list[dict[str, Any]]:
+    """Return starters and substitutes, with positions, from a match report.
 
-    Reusing one page/browser across many matches (instead of relaunching
-    Chromium per match) drastically cuts the number of requests SofaScore
-    sees in a short window, which is the main driver of 403 rate-limit
-    responses during long scraping runs.
+    Starting-player positions are inferred from their location on the formation
+    pitch and grouped as GK, DEF, MID, or FWD. Substitute positions use the
+    position codes shown in Transfermarkt's substitutes table.
     """
-    snapshot_at = datetime.now(timezone.utc)
-    rows: list[dict[str, Any]] = []
+    if timeout_seconds <= 0:
+        raise ValueError("timeout_seconds må være større enn 0.")
 
-    event_payload = _fetch_sofascore_json(page, f"/api/v1/event/{event_id}")
-    event_payload = event_payload.get("event", event_payload)
-    event_date = datetime.fromtimestamp(
-        int(event_payload["startTimestamp"]),
-        tz=timezone.utc,
-    ).date()
-    event_season = (event_payload.get("season") or {}).get("year")
-    event_matchday = (event_payload.get("roundInfo") or {}).get("round")
-    event_home_team = (event_payload.get("homeTeam") or {}).get("name")
-    event_away_team = (event_payload.get("awayTeam") or {}).get("name")
-    payload = _fetch_sofascore_json(page, f"/api/v1/event/{event_id}/lineups")
-    for side in ("home", "away"):
-        lineup = payload.get(side) or {}
-        team = event_payload.get(f"{side}Team") or {}
-        for player_row in lineup.get("players", []):
-            player = player_row.get("player") or {}
-            statistics = player_row.get("statistics") or {}
-            accurate_pass = statistics.get("accuratePass")
-            total_pass = statistics.get("totalPass")
-            pass_accuracy = (
-                round(100 * accurate_pass / total_pass, 1)
-                if isinstance(accurate_pass, (int, float))
-                and isinstance(total_pass, (int, float))
-                and total_pass
+    response = requests.get(
+        report_url,
+        headers={"User-Agent": REQUEST_HEADERS["User-Agent"]},
+        timeout=timeout_seconds,
+    )
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, "html.parser")
+    page_text = soup.get_text(" ", strip=True)
+
+    report_heading = soup.find("h1")
+    report_teams = (
+        " ".join(report_heading.stripped_strings).split(" - ", 1)
+        if report_heading
+        else []
+    )
+    date_match = re.search(
+        r"\b(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),\s*(\d{2}/\d{2}/\d{2})\b",
+        page_text,
+    )
+    match_date = (
+        datetime.strptime(date_match.group(1), "%d/%m/%y").date()
+        if date_match
+        else None
+    )
+    matchday_match = re.search(r"\b(\d+)\.\s*Matchday\b", page_text, re.IGNORECASE)
+    matchday = int(matchday_match.group(1)) if matchday_match else None
+    season = match_date.year if match_date else None
+    home_team = report_teams[0] if len(report_teams) == 2 else None
+    away_team = report_teams[1] if len(report_teams) == 2 else None
+
+    lineups_heading = next(
+        (
+            heading
+            for heading in soup.find_all("h2")
+            if " ".join(heading.stripped_strings).casefold() == "line-ups"
+        ),
+        None,
+    )
+    if lineups_heading is None:
+        return []
+
+    lineups_box = lineups_heading.find_parent("div", class_="box")
+    if lineups_box is None:
+        return []
+
+    rows: list[dict[str, Any]] = []
+    team_boxes = [
+        child
+        for child in lineups_box.find_all("div", recursive=False)
+        if child.select_one(".aufstellung-unterueberschrift-mannschaft")
+    ]
+    for team_box in team_boxes:
+        team_link = team_box.select_one(
+            ".aufstellung-unterueberschrift-mannschaft a.sb-vereinslink"
+        )
+        team_name = (
+            team_link.get("title") or " ".join(team_link.stripped_strings)
+            if team_link
+            else None
+        )
+        if not team_name:
+            continue
+
+        if home_team and _team_names_match(team_name, home_team):
+            home_or_away = "home"
+        elif away_team and _team_names_match(team_name, away_team):
+            home_or_away = "away"
+        else:
+            home_or_away = None
+
+        formation_text = " ".join(
+            (team_box.select_one(".formation-subtitle") or BeautifulSoup("", "html.parser"))
+            .stripped_strings
+        )
+        formation_match = re.search(r"(\d+(?:-\d+)+)", formation_text)
+        formation = formation_match.group(1) if formation_match else None
+
+        for player_container in team_box.select(".formation-player-container"):
+            player_link = player_container.select_one(".formation-number-name a")
+            if player_link is None:
+                continue
+
+            shirt_number_node = player_container.select_one(".tm-shirt-number")
+            shirt_number_text = (
+                " ".join(shirt_number_node.stripped_strings)
+                if shirt_number_node
                 else None
             )
-            row: dict[str, Any] = {
-                "sofascore_event_id": event_id,
-                "date": event_date,
-                "season": int(event_season) if event_season is not None else None,
-                "matchday": event_matchday,
-                "home_team": event_home_team,
-                "away_team": event_away_team,
-                "home_or_away": side,
-                "team_id": team.get("id") or lineup.get("teamId"),
-                "team_name": team.get("name"),
-                "player_id": player.get("id"),
-                "player_name": player.get("name"),
-                "player_slug": player.get("slug"),
-                "player_position": player.get("position"),
-                "player_short_name": player.get("shortName"),
-                "shirt_number": player_row.get("shirtNumber"),
-                "jersey_number": player_row.get("jerseyNumber"),
-                "captain": player_row.get("captain"),
-                "player_substitute": player_row.get("substitute"),
-                "goals": statistics.get("goals"),
-                "assists": statistics.get("goalAssist"),
-                "tackles_won": statistics.get("wonTackle"),
-                "duels_won": statistics.get("duelWon"),
-                "duels_lost": statistics.get("duelLost"),
-                "ground_duels_won": statistics.get("groundDuelsWon"),
-                "ground_duels_lost": statistics.get("groundDuelsLost"),
-                "aerial_won": statistics.get("aerialWon"),
-                "aerial_lost": statistics.get("aerialLost"),
-                "accurate_pass": accurate_pass,
-                "total_pass": total_pass,
-                "pass_accuracy": pass_accuracy,
-                "player_statistics": json.dumps(
-                    statistics,
-                    ensure_ascii=True,
-                    sort_keys=True,
-                ),
-                "snapshot_at": snapshot_at,
-            }
-            row.update(
+            top_match = re.search(
+                r"top:\s*([\d.]+)%", player_container.get("style", "")
+            )
+            left_match = re.search(
+                r"left:\s*([\d.]+)%", player_container.get("style", "")
+            )
+            top = float(top_match.group(1)) if top_match else None
+            left = float(left_match.group(1)) if left_match else None
+
+            own_goal_distance = top
+            if own_goal_distance is None:
+                position = None
+            elif own_goal_distance >= 70:
+                position = "GK"
+            elif own_goal_distance >= 48:
+                position = "DEF"
+            elif own_goal_distance >= 23:
+                position = "MID"
+            else:
+                position = "FWD"
+
+            player_id_match = re.search(
+                r"/spieler/(\d+)", player_link.get("href", "")
+            )
+            rows.append(
                 {
-                    f"stat_{key}": (
-                        json.dumps(value, ensure_ascii=True, sort_keys=True)
-                        if isinstance(value, (dict, list))
-                        else value
-                    )
-                    for key, value in statistics.items()
+                    "season": season,
+                    "date": match_date,
+                    "matchday": matchday,
+                    "home_team": home_team,
+                    "away_team": away_team,
+                    "report_url": report_url,
+                    "team_name": team_name,
+                    "home_or_away": home_or_away,
+                    "formation": formation,
+                    "player_name": player_link.get("title")
+                    or " ".join(player_link.stripped_strings),
+                    "player_id": (
+                        int(player_id_match.group(1)) if player_id_match else None
+                    ),
+                    "shirt_number": (
+                        int(shirt_number_text)
+                        if shirt_number_text and shirt_number_text.isdigit()
+                        else None
+                    ),
+                    "player_status": "starter",
+                    "position": position,
+                    "position_source": "formation_location",
+                    "formation_top": top,
+                    "formation_left": left,
+                    "substitute_used": None,
                 }
             )
-            rows.append(row)
+
+        for substitute_row in team_box.select("table.ersatzbank tr"):
+            player_link = substitute_row.select_one("a[href*='/profil/spieler/']")
+            if player_link is None:
+                continue
+
+            shirt_number_node = substitute_row.select_one(
+                ".tm-shirt-number.formation-number-substitute"
+            )
+            shirt_number_text = (
+                " ".join(shirt_number_node.stripped_strings)
+                if shirt_number_node
+                else None
+            )
+            cells = substitute_row.find_all("td", recursive=False)
+            position = " ".join(cells[-1].stripped_strings) if len(cells) >= 3 else ""
+            player_id_match = re.search(
+                r"/spieler/(\d+)", player_link.get("href", "")
+            )
+            rows.append(
+                {
+                    "season": season,
+                    "date": match_date,
+                    "matchday": matchday,
+                    "home_team": home_team,
+                    "away_team": away_team,
+                    "report_url": report_url,
+                    "team_name": team_name,
+                    "home_or_away": home_or_away,
+                    "formation": formation,
+                    "player_name": player_link.get("title")
+                    or " ".join(player_link.stripped_strings),
+                    "player_id": (
+                        int(player_id_match.group(1)) if player_id_match else None
+                    ),
+                    "shirt_number": (
+                        int(shirt_number_text)
+                        if shirt_number_text and shirt_number_text.isdigit()
+                        else None
+                    ),
+                    "player_status": "substitute",
+                    "position": position or None,
+                    "position_source": "transfermarkt_substitutes_table",
+                    "formation_top": None,
+                    "formation_left": None,
+                    "substitute_used": bool(
+                        substitute_row.select_one(".icon-einwechslung-formation")
+                    ),
+                }
+            )
 
     return rows
 
 
-def scrape_sofascore_general_player_statistics(
-    event_id: int,
+def scrape_eliteserien_lineups_for_season(
+    season: tuple[int, int] = (2025, 2026),
+    delay_seconds: float = 2.0,
     timeout_seconds: int = 30,
 ) -> list[dict[str, Any]]:
-    """Return only the player-statistics columns shown under SofaScore General."""
-    rows = scrape_sofascore_player_statistics(
-        event_id=event_id,
-        timeout_seconds=timeout_seconds,
-    )
-    general_columns = {
-        "date",
-        "season",
-        "matchday",
-        "home_team",
-        "away_team",
-        "sofascore_event_id",
-        "home_or_away",
-        "team_id",
-        "team_name",
-        "player_id",
-        "player_name",
-        "player_slug",
-        "player_position",
-        "player_short_name",
-        "shirt_number",
-        "jersey_number",
-        "captain",
-        "player_substitute",
-        "goals",
-        "assists",
-        "tackles_won",
-        "accurate_pass",
-        "total_pass",
-        "pass_accuracy",
-        "duels_won",
-        "duels_lost",
-        "ground_duels_won",
-        "ground_duels_lost",
-        "aerial_won",
-        "aerial_lost",
-        "stat_rating",
-        "snapshot_at",
-    }
-    # Use .get() instead of a membership filter so every row keeps the same
-    # fixed columns (as None) even when a season/match is missing a stat key.
-    return [{key: row.get(key) for key in general_columns} for row in rows]
+    """Scrape starters and substitutes for every completed match in a season."""
+    if len(season) != 2:
+        raise ValueError("season må være et tuple med (season_id, year).")
+    if delay_seconds < 0:
+        raise ValueError("delay_seconds kan ikke være negativ.")
+    if timeout_seconds <= 0:
+        raise ValueError("timeout_seconds må være større enn 0.")
+
+    season_id, year = season
+    matches = scrape_eliteserien_results(season_id=season_id, year=year)
+    matches_with_reports = [match for match in matches if match.get("report_url")]
+    all_rows: list[dict[str, Any]] = []
+    snapshot_at = datetime.now(timezone.utc)
+
+    for index, match in enumerate(matches_with_reports):
+        if index:
+            sleep(delay_seconds)
+
+        home_team = match["home_team"]
+        away_team = match["away_team"]
+        match_date = match["date"]
+        print(
+            f"Scraping lineups {index + 1}/{len(matches_with_reports)} | "
+            f"{home_team} vs {away_team} ({match_date})",
+            flush=True,
+        )
+
+        try:
+            lineup_rows = scrape_transfermarkt_lineups(
+                match["report_url"],
+                timeout_seconds=timeout_seconds,
+            )
+        except requests.RequestException as error:
+            print(
+                f"Skipping {home_team} vs {away_team} ({match_date}): {error}",
+                flush=True,
+            )
+            continue
+
+        all_rows.extend(
+            {
+                **lineup_row,
+                "season": year,
+                "date": match_date,
+                "matchday": match.get("matchday"),
+                "home_team": home_team,
+                "away_team": away_team,
+                "result": match.get("result"),
+                "snapshot_at": snapshot_at,
+            }
+            for lineup_row in lineup_rows
+        )
+        print(
+            f"Done {index + 1}/{len(matches_with_reports)} | "
+            f"players={len(lineup_rows)}",
+            flush=True,
+        )
+
+    return all_rows
 
 
-def scrape_eliteserien_general_player_statistics_for_season(
-    season_id: int = 2025,
-    year: int = 2026,
-    delay_seconds: float = 0.2,
+def scrape_eliteserien_goal_contributions_for_season(
+    season: tuple[int, int] = (2025, 2026),
+    delay_seconds: float = 2.0,
     timeout_seconds: int = 30,
 ) -> list[dict[str, Any]]:
-    """Return only General player statistics for every match in one season."""
-    rows = scrape_eliteserien_player_statistics_for_season(
-        season_id=season_id,
-        year=year,
-        delay_seconds=delay_seconds,
-        timeout_seconds=timeout_seconds,
-    )
-    general_keys = {
-        "season", "date", "matchday", "home_team", "away_team", "result",
-        "sofascore_event_id", "home_or_away", "team_id", "team_name",
-        "player_id", "player_name", "player_slug", "player_position",
-        "player_short_name", "shirt_number", "jersey_number", "captain",
-        "player_substitute", "goals", "assists", "tackles_won",
-        "accurate_pass", "total_pass", "pass_accuracy", "duels_won",
-        "duels_lost", "ground_duels_won", "ground_duels_lost", "aerial_won",
-        "aerial_lost", "stat_rating", "snapshot_at",
-    }
-    # Use .get() instead of a membership filter so every row keeps the same
-    # fixed columns (as None) even when a season/match is missing a stat key.
-    return [{key: row.get(key) for key in general_keys} for row in rows]
+    """Return scorers and assists from completed matches in one Eliteserien season."""
+    if len(season) != 2:
+        raise ValueError("season må være et tuple med (season_id, year).")
+    if delay_seconds < 0:
+        raise ValueError("delay_seconds kan ikke være negativ.")
+    if timeout_seconds <= 0:
+        raise ValueError("timeout_seconds må være større enn 0.")
+
+    season_id, year = season
+    matches = scrape_eliteserien_results(season_id=season_id, year=year)
+    if not matches:
+        return []
+
+    snapshot_at = datetime.now(timezone.utc)
+    all_rows: list[dict[str, Any]] = []
+    completed_matches = [match for match in matches if match.get("report_url")]
+    for index, match in enumerate(completed_matches):
+        if index:
+            sleep(delay_seconds)
+        print(
+            f"Scraping goals {index + 1}/{len(completed_matches)} | "
+            f"{match['home_team']} vs {match['away_team']} ({match['date']})",
+            flush=True,
+        )
+        try:
+            goal_rows = scrape_transfermarkt_goal_contributions(
+                match["report_url"],
+                timeout_seconds=timeout_seconds,
+                match_metadata={"season": year, **match},
+            )
+            all_rows.extend(
+                {
+                    **goal_row,
+                    "season": year,
+                    "date": match["date"],
+                    "matchday": match["matchday"],
+                    "home_team": match["home_team"],
+                    "away_team": match["away_team"],
+                    "result": match["result"],
+                    "snapshot_at": snapshot_at,
+                }
+                for goal_row in goal_rows
+            )
+        except requests.RequestException as error:
+            print(
+                f"Skipping {match['home_team']} vs {match['away_team']}: {error}",
+                flush=True,
+            )
+
+    return all_rows
 
 
-def scrape_eliteserien_general_player_statistics_for_seasons(
+def scrape_eliteserien_goal_contributions_for_seasons(
     seasons: list[tuple[int, int]],
     delay_seconds: float = 0.2,
     season_delay_seconds: float = 2.0,
     timeout_seconds: int = 30,
 ) -> list[dict[str, Any]]:
-    """Return only General player statistics across several seasons."""
-    rows = scrape_eliteserien_player_statistics_for_seasons(
-        seasons=seasons,
-        delay_seconds=delay_seconds,
-        season_delay_seconds=season_delay_seconds,
-        timeout_seconds=timeout_seconds,
-    )
-    general_keys = {
-        "season", "date", "matchday", "home_team", "away_team", "result",
-        "sofascore_event_id", "home_or_away", "team_id", "team_name",
-        "player_id", "player_name", "player_slug", "player_position",
-        "player_short_name", "shirt_number", "jersey_number", "captain",
-        "player_substitute", "goals", "assists", "tackles_won",
-        "accurate_pass", "total_pass", "pass_accuracy", "duels_won",
-        "duels_lost", "ground_duels_won", "ground_duels_lost", "aerial_won",
-        "aerial_lost", "stat_rating", "snapshot_at",
-    }
-    # Use .get() instead of a membership filter so every row keeps the same
-    # fixed columns (as None) even when a season/match is missing a stat key.
-    return [{key: row.get(key) for key in general_keys} for row in rows]
-
-
-def scrape_eliteserien_player_statistics_for_season(
-    season_id: int = 2025,
-    year: int = 2026,
-    delay_seconds: float = 0.2,
-    timeout_seconds: int = 30,
-) -> list[dict[str, Any]]:
-    """Return player statistics for every completed match in one season."""
-    return scrape_eliteserien_player_statistics_for_seasons(
-        seasons=[(season_id, year)],
-        delay_seconds=delay_seconds,
-        timeout_seconds=timeout_seconds,
-    )
-
-
-def scrape_eliteserien_player_statistics_for_seasons(
-    seasons: list[tuple[int, int]],
-    delay_seconds: float = 0.2,
-    season_delay_seconds: float = 2.0,
-    timeout_seconds: int = 30,
-) -> list[dict[str, Any]]:
-    """Return player statistics for completed matches across several seasons."""
-    return _run_blocking_safely(
-        _scrape_eliteserien_player_statistics_for_seasons_impl,
-        seasons,
-        delay_seconds,
-        season_delay_seconds,
-        timeout_seconds,
-    )
-
-
-def _scrape_eliteserien_player_statistics_for_seasons_impl(
-    seasons: list[tuple[int, int]],
-    delay_seconds: float = 0.2,
-    season_delay_seconds: float = 2.0,
-    timeout_seconds: int = 30,
-) -> list[dict[str, Any]]:
-    """Return player statistics for completed matches across several seasons.
-
-    Uses a single Playwright browser/page for the entire run instead of
-    relaunching Chromium per match. Relaunching per match multiplies the
-    number of fresh connections SofaScore sees in a short time window, which
-    was the main cause of 403 rate-limit responses on long scraping runs.
-    """
+    """Return scorers and assist providers across several Eliteserien seasons."""
     if delay_seconds < 0 or season_delay_seconds < 0:
         raise ValueError("Forsinkelse kan ikke være negativ.")
 
-    try:
-        from playwright.sync_api import sync_playwright
-    except ImportError as error:
-        raise RuntimeError(
-            "Playwright mangler. Installer med 'uv add playwright' og kjør "
-            "'uv run playwright install chromium'."
-        ) from error
-
     all_rows: list[dict[str, Any]] = []
-    with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(headless=True)
-        context = browser.new_context(
-            user_agent=REQUEST_HEADERS["User-Agent"],
-            locale="nb-NO",
+    for index, season in enumerate(seasons):
+        if index:
+            sleep(season_delay_seconds)
+        all_rows.extend(
+            scrape_eliteserien_goal_contributions_for_season(
+                season=season,
+                delay_seconds=delay_seconds,
+                timeout_seconds=timeout_seconds,
+            )
         )
-        page = context.new_page()
-        page.goto(
-            "https://www.sofascore.com",
-            wait_until="domcontentloaded",
-            timeout=timeout_seconds * 1000,
-        )
-
-        for season_index, (season_id, year) in enumerate(seasons):
-            if season_index:
-                sleep(season_delay_seconds)
-            matches = scrape_eliteserien_results(season_id=season_id, year=year)
-            for match_index, match in enumerate(matches):
-                if match_index:
-                    sleep(delay_seconds)
-                match_date = match.get("date")
-                if not isinstance(match_date, date):
-                    continue
-
-                home_team = str(match.get("home_team", ""))
-                away_team = str(match.get("away_team", ""))
-                try:
-                    event = _find_sofascore_event(
-                        page=page,
-                        home_team=home_team,
-                        away_team=away_team,
-                        match_date=match_date,
-                    )
-                    event_id = int(event["id"])
-                    player_rows = _fetch_sofascore_player_statistics_rows(page, event_id)
-                    for row in player_rows:
-                        row.update(
-                            {
-                                "season": year,
-                                "date": match_date,
-                                "matchday": match.get("matchday"),
-                                "home_team": home_team,
-                                "away_team": away_team,
-                                "result": match.get("result"),
-                            }
-                        )
-                    all_rows.extend(player_rows)
-                    print(
-                        f"Done {match_index + 1}/{len(matches)} | season={year} | "
-                        f"{home_team} vs {away_team} | players={len(player_rows)}"
-                    )
-                except RuntimeError as error:
-                    print(f"Skipping {home_team} vs {away_team} ({match_date}): {error}")
-
-        browser.close()
 
     return all_rows
 
-    return all_rows
+
+
+
