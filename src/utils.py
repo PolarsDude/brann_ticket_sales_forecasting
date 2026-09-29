@@ -52,6 +52,8 @@ REQUEST_HEADERS = {
     "Accept-Language": "nb-NO,nb;q=0.9,en;q=0.8",
 }
 SOFASCORE_EVENT_ID_PATTERN = re.compile(r"#id:(\d+)")
+FOTMOB_MATCH_ID_PATTERN = re.compile(r"#(\d+)(?::|$)")
+FOTMOB_ELITESERIEN_LEAGUE_ID = 59
 TEAM_NOISE_TOKENS = {
     "fk",
     "if",
@@ -588,6 +590,171 @@ def _extract_sofascore_event_id(match_url: str) -> int:
     if event_id_match is None:
         raise ValueError("Fant ikke SofaScore event_id i URL-en. Forventet '#id:<tall>'.")
     return int(event_id_match.group(1))
+
+
+def _fetch_fotmob_ticker_events(
+    session: requests.Session,
+    match_id: str,
+    team_names: list[str],
+    language: str,
+) -> list[dict[str, Any]]:
+    """Fetch and normalize the text events for one FotMob match."""
+    if len(team_names) != 2:
+        raise RuntimeError(f"Fant ikke begge lagene for FotMob-kamp {match_id}.")
+
+    ltc_url = (
+        "http://data.fotmob.com/webcl/ltc/gsm/"
+        f"{match_id}_{language}.json.gz"
+    )
+    ticker_response = session.get(
+        "https://www.fotmob.com/api/data/ltc",
+        params={
+            "ltcUrl": ltc_url,
+            "teams": json.dumps(team_names, ensure_ascii=False),
+        },
+        timeout=30,
+    )
+    ticker_response.raise_for_status()
+    ticker_events = ticker_response.json().get("events")
+    if not isinstance(ticker_events, list):
+        raise RuntimeError(f"Fant ikke hendelser i FotMob-responsen for kamp {match_id}.")
+
+    return [
+        {
+            "time": event.get("time"),
+            "type": event.get("type"),
+            "title": event.get("title"),
+            "text": event["text"].strip(),
+        }
+        for event in ticker_events
+        if isinstance(event, dict)
+        and isinstance(event.get("text"), str)
+        and event["text"].strip()
+    ]
+
+
+def scrape_fotmob_match_report(
+    match_url: str,
+    language: str = "nb",
+) -> list[dict[str, Any]]:
+    """Return FotMob match-report events with text, time, type, and title."""
+    match_id_match = FOTMOB_MATCH_ID_PATTERN.search(match_url)
+    if match_id_match is None:
+        raise ValueError(
+            "Fant ikke FotMob match_id i URL-en. Forventet '#<tall>:tab=ticker'."
+        )
+    match_id = match_id_match.group(1)
+
+    with requests.Session() as session:
+        session.headers.update({**REQUEST_HEADERS, "Accept": "application/json"})
+        details_response = session.get(
+            "https://www.fotmob.com/api/data/matchDetails",
+            params={"matchId": match_id},
+            timeout=30,
+        )
+        details_response.raise_for_status()
+        details = details_response.json()
+        teams = details.get("header", {}).get("teams", [])
+        team_names = [team.get("name") for team in teams if team.get("name")]
+        return _fetch_fotmob_ticker_events(session, match_id, team_names, language)
+
+
+def scrape_fotmob_eliteserien_results_for_year(
+    year: int,
+) -> list[dict[str, Any]]:
+    """Return finished Eliteserien results for one season year from FotMob."""
+    if year < 1:
+        raise ValueError("year må være et positivt årstall.")
+
+    response = requests.get(
+        "https://www.fotmob.com/api/data/leagues",
+        params={
+            "id": FOTMOB_ELITESERIEN_LEAGUE_ID,
+            "ccode3": "NOR",
+            "season": year,
+        },
+        headers={**REQUEST_HEADERS, "Accept": "application/json"},
+        timeout=30,
+    )
+    response.raise_for_status()
+    fixtures = response.json().get("fixtures", {}).get("allMatches")
+    if not isinstance(fixtures, list):
+        raise RuntimeError(f"Fant ikke kampoppsett for Eliteserien {year} hos FotMob.")
+
+    results: list[dict[str, Any]] = []
+    for match in fixtures:
+        status = match.get("status", {})
+        if not status.get("finished"):
+            continue
+
+        score_match = re.fullmatch(r"\s*(\d+)\s*-\s*(\d+)\s*", status.get("scoreStr", ""))
+        if score_match is None:
+            continue
+
+        utc_time = datetime.fromisoformat(status["utcTime"].replace("Z", "+00:00"))
+        results.append(
+            {
+                "date": utc_time.date(),
+                "matchday": match.get("roundName"),
+                "home_team": match.get("home", {}).get("name"),
+                "away_team": match.get("away", {}).get("name"),
+                "home_goals": int(score_match.group(1)),
+                "away_goals": int(score_match.group(2)),
+                "result": status["scoreStr"],
+                "match_id": str(match["id"]),
+                "report_url": urljoin("https://www.fotmob.com", match["pageUrl"]),
+            }
+        )
+
+    return results
+
+
+def scrape_fotmob_eliteserien_results_for_seasons(
+    seasons: list[tuple[int, int | None]],
+    delay_seconds: float = 2.0,
+    language: str = "nb",
+) -> list[dict[str, Any]]:
+    """Return FotMob results and report events for several seasons."""
+    return scrape_fotmob_eliteserien_match_reports_for_seasons(
+        seasons=seasons,
+        delay_seconds=delay_seconds,
+        language=language,
+    )
+
+
+def scrape_fotmob_eliteserien_match_reports_for_seasons(
+    seasons: list[tuple[int, int | None]],
+    delay_seconds: float = 2.0,
+    language: str = "nb",
+) -> list[dict[str, Any]]:
+    """Return each finished Eliteserien match with its FotMob report events."""
+    if delay_seconds < 0:
+        raise ValueError("delay_seconds kan ikke være negativ.")
+
+    match_reports: list[dict[str, Any]] = []
+    for season_index, (season_id, year) in enumerate(seasons):
+        if season_index:
+            sleep(delay_seconds)
+        season_year = year if year is not None else season_id
+        season_matches = scrape_fotmob_eliteserien_results_for_year(season_year)
+
+        with requests.Session() as session:
+            session.headers.update({**REQUEST_HEADERS, "Accept": "application/json"})
+            for match_index, match in enumerate(season_matches):
+                if match_index:
+                    sleep(delay_seconds)
+                team_names = [match["home_team"], match["away_team"]]
+                report = _fetch_fotmob_ticker_events(
+                    session,
+                    match["match_id"],
+                    team_names,
+                    language,
+                )
+                match_reports.append(
+                    {**match, "season": season_year, "report": report}
+                )
+
+    return match_reports
 
 
 def _has_running_event_loop() -> bool:
