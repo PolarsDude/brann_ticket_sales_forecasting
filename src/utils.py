@@ -615,7 +615,15 @@ def _fetch_fotmob_ticker_events(
         timeout=30,
     )
     ticker_response.raise_for_status()
-    ticker_events = ticker_response.json().get("events")
+    ticker_payload = ticker_response.json()
+    if ticker_payload is None:
+        return []
+    if not isinstance(ticker_payload, dict):
+        raise RuntimeError(
+            f"Ugyldig FotMob ticker-respons for kamp {match_id}: forventet et objekt."
+        )
+
+    ticker_events = ticker_payload.get("events")
     if not isinstance(ticker_events, list):
         raise RuntimeError(f"Fant ikke hendelser i FotMob-responsen for kamp {match_id}.")
 

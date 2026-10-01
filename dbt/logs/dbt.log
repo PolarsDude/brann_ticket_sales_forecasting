@@ -11012,3 +11012,775 @@ parsing.
 [0m20:51:30.099217 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'end', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001C3B0015B30>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001C3B013C8C0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001C3ABFA3050>]}
 [0m20:51:30.099481 [debug] [MainThread]: Flushing usage events
 [0m20:51:30.792857 [debug] [MainThread]: An error was encountered while trying to flush usage events
+[0m09:34:26.207250 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'start', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001C35B84EBA0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001C358660F50>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001C35E027ED0>]}
+
+
+============================== 09:34:26.212076 | 03a853a3-8576-47c2-adee-a2df68b6d082 ==============================
+[0m09:34:26.212076 [info ] [MainThread]: Running with dbt=1.12.3
+[0m09:34:26.212578 [debug] [MainThread]: running dbt with arguments {'version_check': 'True', 'no_print': 'None', 'static_parser': 'True', 'target_path': 'None', 'warn_error_options': 'WarnErrorOptionsV2(error=[], warn=[], silence=[])', 'maximum_seed_size_mib': '1', 'printer_width': '80', 'write_json': 'True', 'introspect': 'True', 'log_cache_events': 'False', 'empty': 'False', 'cache_selected_only': 'False', 'log_format': 'default', 'debug': 'False', 'fail_fast': 'False', 'profiles_dir': 'C:\\Users\\Yafee Ishraq\\Documents\\brann_ticket_sales_forecasting\\dbt', 'send_anonymous_usage_stats': 'True', 'quiet': 'False', 'warn_error': 'None', 'partial_parse': 'True', 'indirect_selection': 'eager', 'hints_enabled': 'True', 'invocation_command': 'dbt run --select fct_goal_contributions', 'use_experimental_parser': 'False', 'use_colors': 'True', 'log_path': 'C:\\Users\\Yafee Ishraq\\Documents\\brann_ticket_sales_forecasting\\dbt\\logs'}
+[0m09:34:26.422911 [warn ] [MainThread]: [[33mWARNING[0m]: Deprecated functionality
+The `data-paths` config has been renamed to `seed-paths`. Please update your
+`dbt_project.yml` configuration to reflect this change.
+[0m09:34:26.423361 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'deprecation', 'label': '03a853a3-8576-47c2-adee-a2df68b6d082', 'property_': 'warn', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001C35E3262C0>]}
+[0m09:34:26.560467 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'project_id', 'label': '03a853a3-8576-47c2-adee-a2df68b6d082', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001C35E35B130>]}
+[0m09:34:26.666742 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'adapter_info', 'label': '03a853a3-8576-47c2-adee-a2df68b6d082', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001C35DF12850>]}
+[0m09:34:26.679114 [info ] [MainThread]: Registered adapter: duckdb=1.11.0
+[0m09:34:27.031958 [debug] [MainThread]: checksum: 80b00f1ba526a3c10dfbb02f3754322b76848acb57f644269a7fe34e785746b8, vars: {}, profile: brann_analytics, target: dev, version: 1.12.3
+[0m09:34:27.753145 [debug] [MainThread]: Partial parsing enabled: 0 files deleted, 1 files added, 0 files changed.
+[0m09:34:27.753565 [debug] [MainThread]: Partial parsing: added file: brann_analytics://models\marts\fct_goal_contributions.sql
+[0m09:34:28.016757 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'load_project', 'label': '03a853a3-8576-47c2-adee-a2df68b6d082', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001C35E72A300>]}
+[0m09:34:28.085614 [debug] [MainThread]: Wrote artifact WritableManifest to C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\dbt\target\manifest.json
+[0m09:34:28.097264 [debug] [MainThread]: Wrote artifact SemanticManifest to C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\dbt\target\semantic_manifest.json
+[0m09:34:28.137142 [debug] [MainThread]: Wrote artifact OsiDocument to C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\dbt\target\osi_document.json
+[0m09:34:28.151855 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'resource_counts', 'label': '03a853a3-8576-47c2-adee-a2df68b6d082', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001C35FBCC670>]}
+[0m09:34:28.152180 [info ] [MainThread]: Found 5 models, 3 sources, 501 macros
+[0m09:34:28.152516 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'runnable_timing', 'label': '03a853a3-8576-47c2-adee-a2df68b6d082', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001C35FBAF110>]}
+[0m09:34:28.154051 [info ] [MainThread]: 
+[0m09:34:28.154381 [info ] [MainThread]: Concurrency: 4 threads (target='dev')
+[0m09:34:28.154698 [info ] [MainThread]: 
+[0m09:34:28.155178 [debug] [MainThread]: Acquiring new duckdb connection 'master'
+[0m09:34:28.155979 [debug] [ThreadPool]: Acquiring new duckdb connection 'list_brann'
+[0m09:34:29.773352 [debug] [ThreadPool]: Using duckdb connection "list_brann"
+[0m09:34:29.773673 [debug] [ThreadPool]: On list_brann: /* {"app": "dbt", "dbt_version": "1.12.3", "profile_name": "brann_analytics", "target_name": "dev", "connection_name": "list_brann"} */
+
+    
+    select schema_name
+    from system.information_schema.schemata
+    
+    where lower(catalog_name) = '"brann"'
+    
+  
+  
+[0m09:34:29.773895 [debug] [ThreadPool]: Opening a new connection, currently in state init
+[0m09:34:29.820577 [debug] [ThreadPool]: DuckDB adapter: duckdb error: IO Error: Cannot open file "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\data\brann.duckdb": Prosessen får ikke tilgang til filen fordi den brukes av en annen prosess.
+
+File is already open in 
+C:\Users\Yafee Ishraq\AppData\Roaming\uv\python\cpython-3.13.1-windows-x86_64-none\python.exe (PID 13248)
+[0m09:34:29.820922 [debug] [ThreadPool]: DuckDB adapter: Error running SQL: /* {"app": "dbt", "dbt_version": "1.12.3", "profile_name": "brann_analytics", "target_name": "dev", "connection_name": "list_brann"} */
+
+    
+    select schema_name
+    from system.information_schema.schemata
+    
+    where lower(catalog_name) = '"brann"'
+    
+  
+  
+[0m09:34:29.821132 [debug] [ThreadPool]: DuckDB adapter: Rolling back transaction.
+[0m09:34:29.821342 [debug] [ThreadPool]: Opening a new connection, currently in state init
+[0m09:34:29.856509 [debug] [ThreadPool]: DuckDB adapter: duckdb error: IO Error: Cannot open file "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\data\brann.duckdb": Prosessen får ikke tilgang til filen fordi den brukes av en annen prosess.
+
+File is already open in 
+C:\Users\Yafee Ishraq\AppData\Roaming\uv\python\cpython-3.13.1-windows-x86_64-none\python.exe (PID 13248)
+[0m09:34:29.856842 [debug] [ThreadPool]: DuckDB adapter: Error running SQL: macro list_schemas
+[0m09:34:29.857044 [debug] [ThreadPool]: DuckDB adapter: Rolling back transaction.
+[0m09:34:29.857237 [debug] [ThreadPool]: Opening a new connection, currently in state init
+[0m09:34:29.894013 [debug] [MainThread]: Connection 'master' was properly closed.
+[0m09:34:29.894368 [debug] [MainThread]: Connection 'list_brann' was properly closed.
+[0m09:34:29.894589 [info ] [MainThread]: 
+[0m09:34:29.894886 [info ] [MainThread]: Finished running  in 0 hours 0 minutes and 1.74 seconds (1.74s).
+[0m09:34:29.895346 [error] [MainThread]: [[31mERROR[0m]: Encountered an error:
+IO Error: Cannot open file "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\data\brann.duckdb": Prosessen får ikke tilgang til filen fordi den brukes av en annen prosess.
+
+File is already open in 
+C:\Users\Yafee Ishraq\AppData\Roaming\uv\python\cpython-3.13.1-windows-x86_64-none\python.exe (PID 13248)
+[0m09:34:30.019569 [error] [MainThread]: Traceback (most recent call last):
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\duckdb\connections.py", line 110, in exception_handler
+    yield
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\sql\connections.py", line 147, in add_query
+    cursor = connection.handle.cursor()
+             ^^^^^^^^^^^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\contracts\connection.py", line 96, in handle
+    self._handle.resolve(self)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\contracts\connection.py", line 120, in resolve
+    return self.opener(connection)
+           ~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\duckdb\connections.py", line 68, in open
+    connection.handle = cls._ENV.handle()
+                        ~~~~~~~~~~~~~~~^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\duckdb\environments\local.py", line 79, in handle
+    self.conn = self.initialize_db(self.creds, self._plugins)
+                ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\duckdb\environments\__init__.py", line 164, in initialize_db
+    conn = duckdb.connect(creds.path, read_only=False, config=config)
+_duckdb.IOException: IO Error: Cannot open file "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\data\brann.duckdb": Prosessen får ikke tilgang til filen fordi den brukes av en annen prosess.
+
+File is already open in 
+C:\Users\Yafee Ishraq\AppData\Roaming\uv\python\cpython-3.13.1-windows-x86_64-none\python.exe (PID 13248)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\duckdb\connections.py", line 110, in exception_handler
+    yield
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\base\impl.py", line 1372, in execute_macro
+    result = macro_function(**kwargs)
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt_common\clients\jinja.py", line 427, in __call__
+    return self.call_macro(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt_common\clients\jinja.py", line 395, in call_macro
+    return macro(*args, **kwargs)
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\jinja2\runtime.py", line 770, in __call__
+    return self._invoke(arguments, autoescape)
+           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\jinja2\runtime.py", line 784, in _invoke
+    rv = self._func(*arguments)
+  File "<template>", line 20, in macro
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\jinja2\sandbox.py", line 401, in call
+    return __context.call(__obj, *args, **kwargs)
+           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\jinja2\runtime.py", line 303, in call
+    return __obj(*args, **kwargs)
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\clients\jinja.py", line 151, in __call__
+    return self.call_macro(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt_common\clients\jinja.py", line 395, in call_macro
+    return macro(*args, **kwargs)
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\jinja2\runtime.py", line 770, in __call__
+    return self._invoke(arguments, autoescape)
+           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\jinja2\runtime.py", line 784, in _invoke
+    rv = self._func(*arguments)
+  File "<template>", line 50, in macro
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\jinja2\sandbox.py", line 401, in call
+    return __context.call(__obj, *args, **kwargs)
+           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\jinja2\runtime.py", line 303, in call
+    return __obj(*args, **kwargs)
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\clients\jinja.py", line 151, in __call__
+    return self.call_macro(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt_common\clients\jinja.py", line 395, in call_macro
+    return macro(*args, **kwargs)
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\jinja2\runtime.py", line 770, in __call__
+    return self._invoke(arguments, autoescape)
+           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\jinja2\runtime.py", line 784, in _invoke
+    rv = self._func(*arguments)
+  File "<template>", line 33, in macro
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\jinja2\sandbox.py", line 401, in call
+    return __context.call(__obj, *args, **kwargs)
+           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\jinja2\runtime.py", line 303, in call
+    return __obj(*args, **kwargs)
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\clients\jinja.py", line 151, in __call__
+    return self.call_macro(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt_common\clients\jinja.py", line 395, in call_macro
+    return macro(*args, **kwargs)
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\jinja2\runtime.py", line 770, in __call__
+    return self._invoke(arguments, autoescape)
+           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\jinja2\runtime.py", line 784, in _invoke
+    rv = self._func(*arguments)
+  File "<template>", line 52, in macro
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\jinja2\sandbox.py", line 401, in call
+    return __context.call(__obj, *args, **kwargs)
+           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\jinja2\runtime.py", line 303, in call
+    return __obj(*args, **kwargs)
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt_common\record.py", line 538, in record_replay_wrapper
+    return func_to_record(*call_args, **kwargs)
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\base\impl.py", line 523, in execute
+    return self.connections.execute(sql=sql, auto_begin=auto_begin, fetch=fetch, limit=limit)
+           ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\duckdb\connections.py", line 145, in execute
+    return super().execute(sql, auto_begin, fetch, limit)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\sql\connections.py", line 219, in execute
+    _, cursor = self.add_query(sql, auto_begin)
+                ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\sql\connections.py", line 131, in add_query
+    with self.exception_handler(sql):
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\Yafee Ishraq\AppData\Roaming\uv\python\cpython-3.13.1-windows-x86_64-none\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\duckdb\connections.py", line 117, in exception_handler
+    self.rollback_if_open()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\base\connections.py", line 125, in rollback_if_open
+    if conn is not None and conn.handle and conn.transaction_open:
+                            ^^^^^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\contracts\connection.py", line 96, in handle
+    self._handle.resolve(self)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\contracts\connection.py", line 120, in resolve
+    return self.opener(connection)
+           ~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\duckdb\connections.py", line 68, in open
+    connection.handle = cls._ENV.handle()
+                        ~~~~~~~~~~~~~~~^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\duckdb\environments\local.py", line 79, in handle
+    self.conn = self.initialize_db(self.creds, self._plugins)
+                ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\duckdb\environments\__init__.py", line 164, in initialize_db
+    conn = duckdb.connect(creds.path, read_only=False, config=config)
+_duckdb.IOException: IO Error: Cannot open file "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\data\brann.duckdb": Prosessen får ikke tilgang til filen fordi den brukes av en annen prosess.
+
+File is already open in 
+C:\Users\Yafee Ishraq\AppData\Roaming\uv\python\cpython-3.13.1-windows-x86_64-none\python.exe (PID 13248)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\cli\requires.py", line 198, in wrapper
+    result, success = func(*args, **kwargs)
+                      ~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\cli\requires.py", line 144, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\cli\requires.py", line 295, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\cli\requires.py", line 340, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\cli\requires.py", line 387, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\cli\requires.py", line 404, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\cli\main.py", line 609, in run
+    results = task.run()
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\task\runnable.py", line 775, in run
+    result = self.execute_with_hooks(selected_uids)
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\task\runnable.py", line 701, in execute_with_hooks
+    before_run_status = self.before_run(adapter, selected_uids)
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\task\run.py", line 1313, in before_run
+    self.create_schemas(adapter, required_schemas)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\task\runnable.py", line 883, in create_schemas
+    existing_schemas_lowered.update(ls_future.result())
+                                    ~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Yafee Ishraq\AppData\Roaming\uv\python\cpython-3.13.1-windows-x86_64-none\Lib\concurrent\futures\_base.py", line 449, in result
+    return self.__get_result()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Yafee Ishraq\AppData\Roaming\uv\python\cpython-3.13.1-windows-x86_64-none\Lib\concurrent\futures\_base.py", line 401, in __get_result
+    raise self._exception
+  File "C:\Users\Yafee Ishraq\AppData\Roaming\uv\python\cpython-3.13.1-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt_common\utils\executor.py", line 20, in connected
+    return func(*args, **kwargs)
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\task\runnable.py", line 858, in list_schemas
+    for s in adapter.list_schemas(database_quoted)
+             ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\sql\impl.py", line 219, in list_schemas
+    results = self.execute_macro(LIST_SCHEMAS_MACRO_NAME, kwargs={"database": database})
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\base\impl.py", line 1371, in execute_macro
+    with self.connections.exception_handler(f"macro {macro_name}"):
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Yafee Ishraq\AppData\Roaming\uv\python\cpython-3.13.1-windows-x86_64-none\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\duckdb\connections.py", line 117, in exception_handler
+    self.rollback_if_open()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\base\connections.py", line 125, in rollback_if_open
+    if conn is not None and conn.handle and conn.transaction_open:
+                            ^^^^^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\contracts\connection.py", line 96, in handle
+    self._handle.resolve(self)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\contracts\connection.py", line 120, in resolve
+    return self.opener(connection)
+           ~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\duckdb\connections.py", line 68, in open
+    connection.handle = cls._ENV.handle()
+                        ~~~~~~~~~~~~~~~^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\duckdb\environments\local.py", line 79, in handle
+    self.conn = self.initialize_db(self.creds, self._plugins)
+                ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\.venv\Lib\site-packages\dbt\adapters\duckdb\environments\__init__.py", line 164, in initialize_db
+    conn = duckdb.connect(creds.path, read_only=False, config=config)
+_duckdb.IOException: IO Error: Cannot open file "C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\data\brann.duckdb": Prosessen får ikke tilgang til filen fordi den brukes av en annen prosess.
+
+File is already open in 
+C:\Users\Yafee Ishraq\AppData\Roaming\uv\python\cpython-3.13.1-windows-x86_64-none\python.exe (PID 13248)
+
+[0m09:34:30.020905 [warn ] [MainThread]: [[33mWARNING[0m][DeprecationsSummary]: Deprecated functionality
+Summary of encountered deprecations:
+- ConfigDataPathDeprecation: 1 occurrence
+To see all deprecation instances instead of just the first occurrence of each,
+run command again with the `--show-all-deprecations` flag. You may also need to
+run with `--no-partial-parse` as some deprecations are only encountered during
+parsing.
+[0m09:34:30.021805 [debug] [MainThread]: Command `dbt run` failed at 09:34:30.021711 after 3.98 seconds
+[0m09:34:30.022101 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'end', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001C35E04F650>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001C35FB62D00>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001C35FB615A0>]}
+[0m09:34:30.022378 [debug] [MainThread]: Flushing usage events
+[0m09:34:30.717253 [debug] [MainThread]: An error was encountered while trying to flush usage events
+[0m09:35:19.361514 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'start', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001FE02CBEBA0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001FE7FA60F50>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001FE05487ED0>]}
+
+
+============================== 09:35:19.364935 | 1997c057-1dc5-411d-b632-8ea97d8b75a9 ==============================
+[0m09:35:19.364935 [info ] [MainThread]: Running with dbt=1.12.3
+[0m09:35:19.365468 [debug] [MainThread]: running dbt with arguments {'version_check': 'True', 'no_print': 'None', 'maximum_seed_size_mib': '1', 'warn_error_options': 'WarnErrorOptionsV2(error=[], warn=[], silence=[])', 'target_path': 'None', 'static_parser': 'True', 'printer_width': '80', 'write_json': 'True', 'empty': 'False', 'log_cache_events': 'False', 'introspect': 'True', 'cache_selected_only': 'False', 'fail_fast': 'False', 'debug': 'False', 'log_format': 'default', 'partial_parse': 'True', 'send_anonymous_usage_stats': 'True', 'quiet': 'False', 'warn_error': 'None', 'profiles_dir': 'C:\\Users\\Yafee Ishraq\\Documents\\brann_ticket_sales_forecasting\\dbt', 'use_colors': 'True', 'hints_enabled': 'True', 'invocation_command': 'dbt run --select fct_goal_contributions', 'use_experimental_parser': 'False', 'indirect_selection': 'eager', 'log_path': 'C:\\Users\\Yafee Ishraq\\Documents\\brann_ticket_sales_forecasting\\dbt\\logs'}
+[0m09:35:19.463774 [warn ] [MainThread]: [[33mWARNING[0m]: Deprecated functionality
+The `data-paths` config has been renamed to `seed-paths`. Please update your
+`dbt_project.yml` configuration to reflect this change.
+[0m09:35:19.464235 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'deprecation', 'label': '1997c057-1dc5-411d-b632-8ea97d8b75a9', 'property_': 'warn', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001FE057222C0>]}
+[0m09:35:19.588722 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'project_id', 'label': '1997c057-1dc5-411d-b632-8ea97d8b75a9', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001FE0575B130>]}
+[0m09:35:19.703588 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'adapter_info', 'label': '1997c057-1dc5-411d-b632-8ea97d8b75a9', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001FE05372850>]}
+[0m09:35:19.706203 [info ] [MainThread]: Registered adapter: duckdb=1.11.0
+[0m09:35:19.985247 [debug] [MainThread]: checksum: 80b00f1ba526a3c10dfbb02f3754322b76848acb57f644269a7fe34e785746b8, vars: {}, profile: brann_analytics, target: dev, version: 1.12.3
+[0m09:35:20.107206 [debug] [MainThread]: Partial parsing enabled: 0 files deleted, 0 files added, 0 files changed.
+[0m09:35:20.107499 [debug] [MainThread]: Nothing changed, skipping partial parsing.
+[0m09:35:20.107701 [debug] [MainThread]: Partial parsing enabled, no changes found, skipping parsing
+[0m09:35:20.115028 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'load_project', 'label': '1997c057-1dc5-411d-b632-8ea97d8b75a9', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001FE05B2E210>]}
+[0m09:35:20.202528 [debug] [MainThread]: Wrote artifact WritableManifest to C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\dbt\target\manifest.json
+[0m09:35:20.205170 [debug] [MainThread]: Wrote artifact SemanticManifest to C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\dbt\target\semantic_manifest.json
+[0m09:35:20.227269 [debug] [MainThread]: Wrote artifact OsiDocument to C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\dbt\target\osi_document.json
+[0m09:35:20.236872 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'resource_counts', 'label': '1997c057-1dc5-411d-b632-8ea97d8b75a9', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001FE05DD7A10>]}
+[0m09:35:20.237180 [info ] [MainThread]: Found 5 models, 3 sources, 501 macros
+[0m09:35:20.237484 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'runnable_timing', 'label': '1997c057-1dc5-411d-b632-8ea97d8b75a9', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001FE05DB2F70>]}
+[0m09:35:20.238628 [info ] [MainThread]: 
+[0m09:35:20.238918 [info ] [MainThread]: Concurrency: 4 threads (target='dev')
+[0m09:35:20.239208 [info ] [MainThread]: 
+[0m09:35:20.239646 [debug] [MainThread]: Acquiring new duckdb connection 'master'
+[0m09:35:20.240344 [debug] [ThreadPool]: Acquiring new duckdb connection 'list_brann'
+[0m09:35:20.323281 [debug] [ThreadPool]: Using duckdb connection "list_brann"
+[0m09:35:20.323590 [debug] [ThreadPool]: On list_brann: /* {"app": "dbt", "dbt_version": "1.12.3", "profile_name": "brann_analytics", "target_name": "dev", "connection_name": "list_brann"} */
+
+    
+    select schema_name
+    from system.information_schema.schemata
+    
+    where lower(catalog_name) = '"brann"'
+    
+  
+  
+[0m09:35:20.323808 [debug] [ThreadPool]: Opening a new connection, currently in state init
+[0m09:35:20.366248 [debug] [ThreadPool]: SQL status: OK in 0.042 seconds
+[0m09:35:20.367441 [debug] [ThreadPool]: On list_brann: Close
+[0m09:35:20.367984 [debug] [ThreadPool]: Re-using an available connection from the pool (formerly list_brann, now create_brann_main)
+[0m09:35:20.368329 [debug] [ThreadPool]: Creating schema "database: "brann"
+schema: "main"
+"
+[0m09:35:20.373392 [debug] [ThreadPool]: Using duckdb connection "create_brann_main"
+[0m09:35:20.373622 [debug] [ThreadPool]: On create_brann_main: /* {"app": "dbt", "dbt_version": "1.12.3", "profile_name": "brann_analytics", "target_name": "dev", "connection_name": "create_brann_main"} */
+
+    
+        select type from duckdb_databases()
+        where lower(database_name)='brann'
+        and type != 'duckdb'
+    
+  
+[0m09:35:20.373823 [debug] [ThreadPool]: Opening a new connection, currently in state closed
+[0m09:35:20.375412 [debug] [ThreadPool]: SQL status: OK in 0.002 seconds
+[0m09:35:20.376249 [debug] [ThreadPool]: Using duckdb connection "create_brann_main"
+[0m09:35:20.376499 [debug] [ThreadPool]: On create_brann_main: BEGIN
+[0m09:35:20.376809 [debug] [ThreadPool]: SQL status: OK in 0.000 seconds
+[0m09:35:20.377013 [debug] [ThreadPool]: Using duckdb connection "create_brann_main"
+[0m09:35:20.377207 [debug] [ThreadPool]: On create_brann_main: /* {"app": "dbt", "dbt_version": "1.12.3", "profile_name": "brann_analytics", "target_name": "dev", "connection_name": "create_brann_main"} */
+
+    
+    
+        create schema if not exists "brann"."main"
+    
+[0m09:35:20.378251 [debug] [ThreadPool]: SQL status: OK in 0.001 seconds
+[0m09:35:20.378962 [debug] [ThreadPool]: On create_brann_main: COMMIT
+[0m09:35:20.379225 [debug] [ThreadPool]: Using duckdb connection "create_brann_main"
+[0m09:35:20.379459 [debug] [ThreadPool]: On create_brann_main: COMMIT
+[0m09:35:20.379786 [debug] [ThreadPool]: SQL status: OK in 0.000 seconds
+[0m09:35:20.379999 [debug] [ThreadPool]: On create_brann_main: Close
+[0m09:35:20.383797 [debug] [ThreadPool]: Acquiring new duckdb connection 'list_brann_main'
+[0m09:35:20.386931 [debug] [ThreadPool]: Using duckdb connection "list_brann_main"
+[0m09:35:20.387151 [debug] [ThreadPool]: On list_brann_main: BEGIN
+[0m09:35:20.387343 [debug] [ThreadPool]: Opening a new connection, currently in state init
+[0m09:35:20.387711 [debug] [ThreadPool]: SQL status: OK in 0.000 seconds
+[0m09:35:20.387921 [debug] [ThreadPool]: Using duckdb connection "list_brann_main"
+[0m09:35:20.388122 [debug] [ThreadPool]: On list_brann_main: /* {"app": "dbt", "dbt_version": "1.12.3", "profile_name": "brann_analytics", "target_name": "dev", "connection_name": "list_brann_main"} */
+select
+      'brann' as database,
+      table_name as name,
+      table_schema as schema,
+      CASE table_type
+        WHEN 'BASE TABLE' THEN 'table'
+        WHEN 'VIEW' THEN 'view'
+        WHEN 'LOCAL TEMPORARY' THEN 'table'
+        END as type
+    from system.information_schema.tables
+    where lower(table_schema) = 'main'
+    and lower(table_catalog) = 'brann'
+  
+[0m09:35:20.392506 [debug] [ThreadPool]: SQL status: OK in 0.004 seconds
+[0m09:35:20.393554 [debug] [ThreadPool]: On list_brann_main: ROLLBACK
+[0m09:35:20.394249 [debug] [ThreadPool]: On list_brann_main: Close
+[0m09:35:20.396956 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'runnable_timing', 'label': '1997c057-1dc5-411d-b632-8ea97d8b75a9', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001FE0613C350>]}
+[0m09:35:20.397245 [debug] [MainThread]: Using duckdb connection "master"
+[0m09:35:20.397441 [debug] [MainThread]: On master: BEGIN
+[0m09:35:20.397627 [debug] [MainThread]: Opening a new connection, currently in state init
+[0m09:35:20.397943 [debug] [MainThread]: SQL status: OK in 0.000 seconds
+[0m09:35:20.398150 [debug] [MainThread]: On master: COMMIT
+[0m09:35:20.398341 [debug] [MainThread]: Using duckdb connection "master"
+[0m09:35:20.398528 [debug] [MainThread]: On master: COMMIT
+[0m09:35:20.398818 [debug] [MainThread]: SQL status: OK in 0.000 seconds
+[0m09:35:20.399020 [debug] [MainThread]: On master: Close
+[0m09:35:20.402838 [debug] [Thread-1 (]: Began running node model.brann_analytics.fct_goal_contributions
+[0m09:35:20.403180 [info ] [Thread-1 (]: 1 of 1 START sql table model main.fct_goal_contributions ....................... [RUN]
+[0m09:35:20.403664 [debug] [Thread-1 (]: Acquiring new duckdb connection 'model.brann_analytics.fct_goal_contributions'
+[0m09:35:20.403941 [debug] [Thread-1 (]: Began compiling node model.brann_analytics.fct_goal_contributions
+[0m09:35:20.411824 [debug] [Thread-1 (]: Using duckdb connection "model.brann_analytics.fct_goal_contributions"
+[0m09:35:20.412125 [debug] [Thread-1 (]: On model.brann_analytics.fct_goal_contributions: /* {"app": "dbt", "dbt_version": "1.12.3", "profile_name": "brann_analytics", "target_name": "dev", "node_id": "model.brann_analytics.fct_goal_contributions"} */
+
+    
+    select table_name
+    from information_schema.tables
+    where table_schema = 'main'
+      and table_name like 'raw_eliterserien_goal_contributions_%'
+    order by table_name
+
+  
+[0m09:35:20.412389 [debug] [Thread-1 (]: Opening a new connection, currently in state init
+[0m09:35:20.423523 [debug] [Thread-1 (]: SQL status: OK in 0.011 seconds
+[0m09:35:20.424811 [debug] [Thread-1 (]: Writing injected SQL for node "model.brann_analytics.fct_goal_contributions"
+[0m09:35:20.425670 [debug] [Thread-1 (]: Began executing node model.brann_analytics.fct_goal_contributions
+[0m09:35:20.460764 [debug] [Thread-1 (]: Writing runtime sql for node "model.brann_analytics.fct_goal_contributions"
+[0m09:35:20.461695 [debug] [Thread-1 (]: Using duckdb connection "model.brann_analytics.fct_goal_contributions"
+[0m09:35:20.461983 [debug] [Thread-1 (]: On model.brann_analytics.fct_goal_contributions: BEGIN
+[0m09:35:20.462402 [debug] [Thread-1 (]: SQL status: OK in 0.000 seconds
+[0m09:35:20.462647 [debug] [Thread-1 (]: Using duckdb connection "model.brann_analytics.fct_goal_contributions"
+[0m09:35:20.462890 [debug] [Thread-1 (]: On model.brann_analytics.fct_goal_contributions: /* {"app": "dbt", "dbt_version": "1.12.3", "profile_name": "brann_analytics", "target_name": "dev", "node_id": "model.brann_analytics.fct_goal_contributions"} */
+
+    
+
+    create  table
+      "brann"."main"."fct_goal_contributions__dbt_tmp"
+  
+    
+    as (
+      
+
+
+with final as (
+   
+
+
+
+
+
+    
+    
+
+
+
+
+
+select * from "raw_eliterserien_goal_contributions_2023"
+union all
+
+select * from "raw_eliterserien_goal_contributions_2024"
+union all
+
+select * from "raw_eliterserien_goal_contributions_2025"
+union all
+
+select * from "raw_eliterserien_goal_contributions_2026"
+
+
+
+
+)
+
+select *
+from final
+    );
+    
+  
+[0m09:35:20.469675 [debug] [Thread-1 (]: SQL status: OK in 0.007 seconds
+[0m09:35:20.473487 [debug] [Thread-1 (]: Using duckdb connection "model.brann_analytics.fct_goal_contributions"
+[0m09:35:20.473750 [debug] [Thread-1 (]: On model.brann_analytics.fct_goal_contributions: /* {"app": "dbt", "dbt_version": "1.12.3", "profile_name": "brann_analytics", "target_name": "dev", "node_id": "model.brann_analytics.fct_goal_contributions"} */
+alter table "brann"."main"."fct_goal_contributions__dbt_tmp" rename to "fct_goal_contributions"
+[0m09:35:20.475527 [debug] [Thread-1 (]: SQL status: OK in 0.002 seconds
+[0m09:35:20.486140 [debug] [Thread-1 (]: On model.brann_analytics.fct_goal_contributions: COMMIT
+[0m09:35:20.486414 [debug] [Thread-1 (]: Using duckdb connection "model.brann_analytics.fct_goal_contributions"
+[0m09:35:20.486652 [debug] [Thread-1 (]: On model.brann_analytics.fct_goal_contributions: COMMIT
+[0m09:35:20.494860 [debug] [Thread-1 (]: SQL status: OK in 0.008 seconds
+[0m09:35:20.498052 [debug] [Thread-1 (]: Using duckdb connection "model.brann_analytics.fct_goal_contributions"
+[0m09:35:20.498312 [debug] [Thread-1 (]: On model.brann_analytics.fct_goal_contributions: /* {"app": "dbt", "dbt_version": "1.12.3", "profile_name": "brann_analytics", "target_name": "dev", "node_id": "model.brann_analytics.fct_goal_contributions"} */
+
+      drop table if exists "brann"."main"."fct_goal_contributions__dbt_backup" cascade
+    
+[0m09:35:20.499235 [debug] [Thread-1 (]: SQL status: OK in 0.001 seconds
+[0m09:35:20.500822 [debug] [Thread-1 (]: On model.brann_analytics.fct_goal_contributions: Close
+[0m09:35:20.502554 [debug] [Thread-1 (]: Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '1997c057-1dc5-411d-b632-8ea97d8b75a9', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001FE05DA3280>]}
+[0m09:35:20.502995 [info ] [Thread-1 (]: 1 of 1 OK created sql table model main.fct_goal_contributions .................. [[32mOK[0m in 0.10s]
+[0m09:35:20.503494 [debug] [Thread-1 (]: Finished running node model.brann_analytics.fct_goal_contributions
+[0m09:35:20.504354 [debug] [MainThread]: Using duckdb connection "master"
+[0m09:35:20.504568 [debug] [MainThread]: On master: BEGIN
+[0m09:35:20.504761 [debug] [MainThread]: Opening a new connection, currently in state closed
+[0m09:35:20.505134 [debug] [MainThread]: SQL status: OK in 0.000 seconds
+[0m09:35:20.505345 [debug] [MainThread]: On master: COMMIT
+[0m09:35:20.505538 [debug] [MainThread]: Using duckdb connection "master"
+[0m09:35:20.505723 [debug] [MainThread]: On master: COMMIT
+[0m09:35:20.506009 [debug] [MainThread]: SQL status: OK in 0.000 seconds
+[0m09:35:20.506214 [debug] [MainThread]: On master: Close
+[0m09:35:20.506475 [debug] [MainThread]: Connection 'master' was properly closed.
+[0m09:35:20.506659 [debug] [MainThread]: Connection 'create_brann_main' was properly closed.
+[0m09:35:20.506829 [debug] [MainThread]: Connection 'list_brann_main' was properly closed.
+[0m09:35:20.506995 [debug] [MainThread]: Connection 'model.brann_analytics.fct_goal_contributions' was properly closed.
+[0m09:35:20.507195 [info ] [MainThread]: 
+[0m09:35:20.507489 [info ] [MainThread]: Finished running 1 table model in 0 hours 0 minutes and 0.27 seconds (0.27s).
+[0m09:35:20.508138 [debug] [MainThread]: Command end result
+[0m09:35:20.535162 [debug] [MainThread]: Wrote artifact WritableManifest to C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\dbt\target\manifest.json
+[0m09:35:20.537903 [debug] [MainThread]: Wrote artifact SemanticManifest to C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\dbt\target\semantic_manifest.json
+[0m09:35:20.540470 [debug] [MainThread]: Wrote artifact OsiDocument to C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\dbt\target\osi_document.json
+[0m09:35:20.545622 [debug] [MainThread]: Wrote artifact RunExecutionResult to C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\dbt\target\run_results.json
+[0m09:35:20.545846 [info ] [MainThread]: 
+[0m09:35:20.546175 [info ] [MainThread]: [32mCompleted successfully[0m
+[0m09:35:20.546432 [info ] [MainThread]: 
+[0m09:35:20.546693 [info ] [MainThread]: Done. PASS=1 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=1
+[0m09:35:20.547068 [warn ] [MainThread]: [[33mWARNING[0m][DeprecationsSummary]: Deprecated functionality
+Summary of encountered deprecations:
+- ConfigDataPathDeprecation: 1 occurrence
+To see all deprecation instances instead of just the first occurrence of each,
+run command again with the `--show-all-deprecations` flag. You may also need to
+run with `--no-partial-parse` as some deprecations are only encountered during
+parsing.
+[0m09:35:20.547863 [debug] [MainThread]: Command `dbt run` succeeded at 09:35:20.547778 after 1.30 seconds
+[0m09:35:20.548119 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'end', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001FE06117F70>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001FE05DA79B0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001FE02C49C50>]}
+[0m09:35:20.548408 [debug] [MainThread]: Flushing usage events
+[0m09:35:21.226093 [debug] [MainThread]: An error was encountered while trying to flush usage events
+[0m09:41:08.005555 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'start', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x00000242CD5CEBA0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x00000242CA3E0F50>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x00000242CFDA7ED0>]}
+
+
+============================== 09:41:08.010595 | 81a14b82-9c0e-4b62-9cea-606b479254cb ==============================
+[0m09:41:08.010595 [info ] [MainThread]: Running with dbt=1.12.3
+[0m09:41:08.011087 [debug] [MainThread]: running dbt with arguments {'version_check': 'True', 'no_print': 'None', 'static_parser': 'True', 'warn_error_options': 'WarnErrorOptionsV2(error=[], warn=[], silence=[])', 'target_path': 'None', 'maximum_seed_size_mib': '1', 'printer_width': '80', 'write_json': 'True', 'introspect': 'True', 'log_cache_events': 'False', 'empty': 'False', 'cache_selected_only': 'False', 'fail_fast': 'False', 'debug': 'False', 'log_format': 'default', 'partial_parse': 'True', 'send_anonymous_usage_stats': 'True', 'quiet': 'False', 'warn_error': 'None', 'profiles_dir': 'C:\\Users\\Yafee Ishraq\\Documents\\brann_ticket_sales_forecasting\\dbt', 'invocation_command': 'dbt run --select fct_goal_contributions', 'hints_enabled': 'True', 'indirect_selection': 'eager', 'use_experimental_parser': 'False', 'use_colors': 'True', 'log_path': 'C:\\Users\\Yafee Ishraq\\Documents\\brann_ticket_sales_forecasting\\dbt\\logs'}
+[0m09:41:08.312743 [warn ] [MainThread]: [[33mWARNING[0m]: Deprecated functionality
+The `data-paths` config has been renamed to `seed-paths`. Please update your
+`dbt_project.yml` configuration to reflect this change.
+[0m09:41:08.313156 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'deprecation', 'label': '81a14b82-9c0e-4b62-9cea-606b479254cb', 'property_': 'warn', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x00000242D00262C0>]}
+[0m09:41:08.451612 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'project_id', 'label': '81a14b82-9c0e-4b62-9cea-606b479254cb', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x00000242D005B130>]}
+[0m09:41:08.554486 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'adapter_info', 'label': '81a14b82-9c0e-4b62-9cea-606b479254cb', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x00000242CFC92850>]}
+[0m09:41:08.566321 [info ] [MainThread]: Registered adapter: duckdb=1.11.0
+[0m09:41:08.916754 [debug] [MainThread]: checksum: 80b00f1ba526a3c10dfbb02f3754322b76848acb57f644269a7fe34e785746b8, vars: {}, profile: brann_analytics, target: dev, version: 1.12.3
+[0m09:41:09.645636 [debug] [MainThread]: Partial parsing enabled: 0 files deleted, 0 files added, 0 files changed.
+[0m09:41:09.645943 [debug] [MainThread]: Nothing changed, skipping partial parsing.
+[0m09:41:09.646145 [debug] [MainThread]: Partial parsing enabled, no changes found, skipping parsing
+[0m09:41:09.653614 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'load_project', 'label': '81a14b82-9c0e-4b62-9cea-606b479254cb', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x00000242D044E210>]}
+[0m09:41:09.740398 [debug] [MainThread]: Wrote artifact WritableManifest to C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\dbt\target\manifest.json
+[0m09:41:09.751859 [debug] [MainThread]: Wrote artifact SemanticManifest to C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\dbt\target\semantic_manifest.json
+[0m09:41:09.787486 [debug] [MainThread]: Wrote artifact OsiDocument to C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\dbt\target\osi_document.json
+[0m09:41:09.801148 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'resource_counts', 'label': '81a14b82-9c0e-4b62-9cea-606b479254cb', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x00000242D06F7A10>]}
+[0m09:41:09.801444 [info ] [MainThread]: Found 5 models, 3 sources, 501 macros
+[0m09:41:09.801738 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'runnable_timing', 'label': '81a14b82-9c0e-4b62-9cea-606b479254cb', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x00000242D06BAF70>]}
+[0m09:41:09.802817 [info ] [MainThread]: 
+[0m09:41:09.803085 [info ] [MainThread]: Concurrency: 4 threads (target='dev')
+[0m09:41:09.803319 [info ] [MainThread]: 
+[0m09:41:09.803695 [debug] [MainThread]: Acquiring new duckdb connection 'master'
+[0m09:41:09.804412 [debug] [ThreadPool]: Acquiring new duckdb connection 'list_brann'
+[0m09:41:11.563272 [debug] [ThreadPool]: Using duckdb connection "list_brann"
+[0m09:41:11.563622 [debug] [ThreadPool]: On list_brann: /* {"app": "dbt", "dbt_version": "1.12.3", "profile_name": "brann_analytics", "target_name": "dev", "connection_name": "list_brann"} */
+
+    
+    select schema_name
+    from system.information_schema.schemata
+    
+    where lower(catalog_name) = '"brann"'
+    
+  
+  
+[0m09:41:11.563911 [debug] [ThreadPool]: Opening a new connection, currently in state init
+[0m09:41:11.628788 [debug] [ThreadPool]: SQL status: OK in 0.065 seconds
+[0m09:41:11.630634 [debug] [ThreadPool]: On list_brann: Close
+[0m09:41:11.631265 [debug] [ThreadPool]: Re-using an available connection from the pool (formerly list_brann, now create_brann_main)
+[0m09:41:11.631677 [debug] [ThreadPool]: Creating schema "database: "brann"
+schema: "main"
+"
+[0m09:41:11.636867 [debug] [ThreadPool]: Using duckdb connection "create_brann_main"
+[0m09:41:11.637150 [debug] [ThreadPool]: On create_brann_main: /* {"app": "dbt", "dbt_version": "1.12.3", "profile_name": "brann_analytics", "target_name": "dev", "connection_name": "create_brann_main"} */
+
+    
+        select type from duckdb_databases()
+        where lower(database_name)='brann'
+        and type != 'duckdb'
+    
+  
+[0m09:41:11.637396 [debug] [ThreadPool]: Opening a new connection, currently in state closed
+[0m09:41:11.638722 [debug] [ThreadPool]: SQL status: OK in 0.001 seconds
+[0m09:41:11.639710 [debug] [ThreadPool]: Using duckdb connection "create_brann_main"
+[0m09:41:11.639921 [debug] [ThreadPool]: On create_brann_main: BEGIN
+[0m09:41:11.640226 [debug] [ThreadPool]: SQL status: OK in 0.000 seconds
+[0m09:41:11.640429 [debug] [ThreadPool]: Using duckdb connection "create_brann_main"
+[0m09:41:11.640622 [debug] [ThreadPool]: On create_brann_main: /* {"app": "dbt", "dbt_version": "1.12.3", "profile_name": "brann_analytics", "target_name": "dev", "connection_name": "create_brann_main"} */
+
+    
+    
+        create schema if not exists "brann"."main"
+    
+[0m09:41:11.641630 [debug] [ThreadPool]: SQL status: OK in 0.001 seconds
+[0m09:41:11.642323 [debug] [ThreadPool]: On create_brann_main: COMMIT
+[0m09:41:11.642579 [debug] [ThreadPool]: Using duckdb connection "create_brann_main"
+[0m09:41:11.642781 [debug] [ThreadPool]: On create_brann_main: COMMIT
+[0m09:41:11.643085 [debug] [ThreadPool]: SQL status: OK in 0.000 seconds
+[0m09:41:11.643298 [debug] [ThreadPool]: On create_brann_main: Close
+[0m09:41:11.647251 [debug] [ThreadPool]: Acquiring new duckdb connection 'list_brann_main'
+[0m09:41:11.650523 [debug] [ThreadPool]: Using duckdb connection "list_brann_main"
+[0m09:41:11.650743 [debug] [ThreadPool]: On list_brann_main: BEGIN
+[0m09:41:11.650930 [debug] [ThreadPool]: Opening a new connection, currently in state init
+[0m09:41:11.651267 [debug] [ThreadPool]: SQL status: OK in 0.000 seconds
+[0m09:41:11.651476 [debug] [ThreadPool]: Using duckdb connection "list_brann_main"
+[0m09:41:11.651677 [debug] [ThreadPool]: On list_brann_main: /* {"app": "dbt", "dbt_version": "1.12.3", "profile_name": "brann_analytics", "target_name": "dev", "connection_name": "list_brann_main"} */
+select
+      'brann' as database,
+      table_name as name,
+      table_schema as schema,
+      CASE table_type
+        WHEN 'BASE TABLE' THEN 'table'
+        WHEN 'VIEW' THEN 'view'
+        WHEN 'LOCAL TEMPORARY' THEN 'table'
+        END as type
+    from system.information_schema.tables
+    where lower(table_schema) = 'main'
+    and lower(table_catalog) = 'brann'
+  
+[0m09:41:11.659967 [debug] [ThreadPool]: SQL status: OK in 0.008 seconds
+[0m09:41:11.660993 [debug] [ThreadPool]: On list_brann_main: ROLLBACK
+[0m09:41:11.661318 [debug] [ThreadPool]: On list_brann_main: Close
+[0m09:41:11.664371 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'runnable_timing', 'label': '81a14b82-9c0e-4b62-9cea-606b479254cb', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x00000242D0A5C350>]}
+[0m09:41:11.664673 [debug] [MainThread]: Using duckdb connection "master"
+[0m09:41:11.664874 [debug] [MainThread]: On master: BEGIN
+[0m09:41:11.665056 [debug] [MainThread]: Opening a new connection, currently in state init
+[0m09:41:11.665382 [debug] [MainThread]: SQL status: OK in 0.000 seconds
+[0m09:41:11.665593 [debug] [MainThread]: On master: COMMIT
+[0m09:41:11.665786 [debug] [MainThread]: Using duckdb connection "master"
+[0m09:41:11.665969 [debug] [MainThread]: On master: COMMIT
+[0m09:41:11.666258 [debug] [MainThread]: SQL status: OK in 0.000 seconds
+[0m09:41:11.666518 [debug] [MainThread]: On master: Close
+[0m09:41:11.670232 [debug] [Thread-1 (]: Began running node model.brann_analytics.fct_goal_contributions
+[0m09:41:11.670590 [info ] [Thread-1 (]: 1 of 1 START sql table model main.fct_goal_contributions ....................... [RUN]
+[0m09:41:11.671022 [debug] [Thread-1 (]: Acquiring new duckdb connection 'model.brann_analytics.fct_goal_contributions'
+[0m09:41:11.671295 [debug] [Thread-1 (]: Began compiling node model.brann_analytics.fct_goal_contributions
+[0m09:41:11.679412 [debug] [Thread-1 (]: Using duckdb connection "model.brann_analytics.fct_goal_contributions"
+[0m09:41:11.679686 [debug] [Thread-1 (]: On model.brann_analytics.fct_goal_contributions: /* {"app": "dbt", "dbt_version": "1.12.3", "profile_name": "brann_analytics", "target_name": "dev", "node_id": "model.brann_analytics.fct_goal_contributions"} */
+
+    
+    select table_name
+    from information_schema.tables
+    where table_schema = 'main'
+      and table_name like 'raw_eliterserien_goal_contributions_%'
+    order by table_name
+
+  
+[0m09:41:11.679938 [debug] [Thread-1 (]: Opening a new connection, currently in state init
+[0m09:41:11.777497 [debug] [Thread-1 (]: SQL status: OK in 0.097 seconds
+[0m09:41:11.778919 [debug] [Thread-1 (]: Writing injected SQL for node "model.brann_analytics.fct_goal_contributions"
+[0m09:41:11.779873 [debug] [Thread-1 (]: Began executing node model.brann_analytics.fct_goal_contributions
+[0m09:41:11.815685 [debug] [Thread-1 (]: Writing runtime sql for node "model.brann_analytics.fct_goal_contributions"
+[0m09:41:11.816609 [debug] [Thread-1 (]: Using duckdb connection "model.brann_analytics.fct_goal_contributions"
+[0m09:41:11.816943 [debug] [Thread-1 (]: On model.brann_analytics.fct_goal_contributions: BEGIN
+[0m09:41:11.817391 [debug] [Thread-1 (]: SQL status: OK in 0.000 seconds
+[0m09:41:11.817638 [debug] [Thread-1 (]: Using duckdb connection "model.brann_analytics.fct_goal_contributions"
+[0m09:41:11.817887 [debug] [Thread-1 (]: On model.brann_analytics.fct_goal_contributions: /* {"app": "dbt", "dbt_version": "1.12.3", "profile_name": "brann_analytics", "target_name": "dev", "node_id": "model.brann_analytics.fct_goal_contributions"} */
+
+    
+
+    create  table
+      "brann"."main"."fct_goal_contributions__dbt_tmp"
+  
+    
+    as (
+      
+
+
+with final as (
+   
+
+
+
+
+
+    
+    
+
+
+
+
+
+select * from "raw_eliterserien_goal_contributions_2023"
+union all
+
+select * from "raw_eliterserien_goal_contributions_2024"
+union all
+
+select * from "raw_eliterserien_goal_contributions_2025"
+union all
+
+select * from "raw_eliterserien_goal_contributions_2026"
+
+
+
+
+)
+
+select *
+from final
+    );
+    
+  
+[0m09:41:11.830968 [debug] [Thread-1 (]: SQL status: OK in 0.013 seconds
+[0m09:41:11.834359 [debug] [Thread-1 (]: Using duckdb connection "model.brann_analytics.fct_goal_contributions"
+[0m09:41:11.834624 [debug] [Thread-1 (]: On model.brann_analytics.fct_goal_contributions: /* {"app": "dbt", "dbt_version": "1.12.3", "profile_name": "brann_analytics", "target_name": "dev", "node_id": "model.brann_analytics.fct_goal_contributions"} */
+
+    SELECT index_name
+    FROM duckdb_indexes()
+    WHERE database_name = 'brann'
+      AND schema_name = 'main'
+      AND table_name = 'fct_goal_contributions'
+  
+[0m09:41:11.835212 [debug] [Thread-1 (]: SQL status: OK in 0.000 seconds
+[0m09:41:11.839072 [debug] [Thread-1 (]: Using duckdb connection "model.brann_analytics.fct_goal_contributions"
+[0m09:41:11.839654 [debug] [Thread-1 (]: On model.brann_analytics.fct_goal_contributions: /* {"app": "dbt", "dbt_version": "1.12.3", "profile_name": "brann_analytics", "target_name": "dev", "node_id": "model.brann_analytics.fct_goal_contributions"} */
+alter table "brann"."main"."fct_goal_contributions" rename to "fct_goal_contributions__dbt_backup"
+[0m09:41:11.840170 [debug] [Thread-1 (]: SQL status: OK in 0.000 seconds
+[0m09:41:11.841512 [debug] [Thread-1 (]: Using duckdb connection "model.brann_analytics.fct_goal_contributions"
+[0m09:41:11.841764 [debug] [Thread-1 (]: On model.brann_analytics.fct_goal_contributions: /* {"app": "dbt", "dbt_version": "1.12.3", "profile_name": "brann_analytics", "target_name": "dev", "node_id": "model.brann_analytics.fct_goal_contributions"} */
+alter table "brann"."main"."fct_goal_contributions__dbt_tmp" rename to "fct_goal_contributions"
+[0m09:41:11.842180 [debug] [Thread-1 (]: SQL status: OK in 0.000 seconds
+[0m09:41:11.853741 [debug] [Thread-1 (]: On model.brann_analytics.fct_goal_contributions: COMMIT
+[0m09:41:11.854016 [debug] [Thread-1 (]: Using duckdb connection "model.brann_analytics.fct_goal_contributions"
+[0m09:41:11.854253 [debug] [Thread-1 (]: On model.brann_analytics.fct_goal_contributions: COMMIT
+[0m09:41:11.873595 [debug] [Thread-1 (]: SQL status: OK in 0.019 seconds
+[0m09:41:11.876961 [debug] [Thread-1 (]: Using duckdb connection "model.brann_analytics.fct_goal_contributions"
+[0m09:41:11.877228 [debug] [Thread-1 (]: On model.brann_analytics.fct_goal_contributions: /* {"app": "dbt", "dbt_version": "1.12.3", "profile_name": "brann_analytics", "target_name": "dev", "node_id": "model.brann_analytics.fct_goal_contributions"} */
+
+      drop table if exists "brann"."main"."fct_goal_contributions__dbt_backup" cascade
+    
+[0m09:41:11.878597 [debug] [Thread-1 (]: SQL status: OK in 0.001 seconds
+[0m09:41:11.880237 [debug] [Thread-1 (]: On model.brann_analytics.fct_goal_contributions: Close
+[0m09:41:11.882051 [debug] [Thread-1 (]: Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '81a14b82-9c0e-4b62-9cea-606b479254cb', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x00000242D06C3330>]}
+[0m09:41:11.882587 [info ] [Thread-1 (]: 1 of 1 OK created sql table model main.fct_goal_contributions .................. [[32mOK[0m in 0.21s]
+[0m09:41:11.883189 [debug] [Thread-1 (]: Finished running node model.brann_analytics.fct_goal_contributions
+[0m09:41:11.884142 [debug] [MainThread]: Using duckdb connection "master"
+[0m09:41:11.884359 [debug] [MainThread]: On master: BEGIN
+[0m09:41:11.884549 [debug] [MainThread]: Opening a new connection, currently in state closed
+[0m09:41:11.884953 [debug] [MainThread]: SQL status: OK in 0.000 seconds
+[0m09:41:11.885169 [debug] [MainThread]: On master: COMMIT
+[0m09:41:11.885369 [debug] [MainThread]: Using duckdb connection "master"
+[0m09:41:11.885559 [debug] [MainThread]: On master: COMMIT
+[0m09:41:11.885856 [debug] [MainThread]: SQL status: OK in 0.000 seconds
+[0m09:41:11.886063 [debug] [MainThread]: On master: Close
+[0m09:41:11.886329 [debug] [MainThread]: Connection 'master' was properly closed.
+[0m09:41:11.886513 [debug] [MainThread]: Connection 'create_brann_main' was properly closed.
+[0m09:41:11.886684 [debug] [MainThread]: Connection 'list_brann_main' was properly closed.
+[0m09:41:11.886852 [debug] [MainThread]: Connection 'model.brann_analytics.fct_goal_contributions' was properly closed.
+[0m09:41:11.887047 [info ] [MainThread]: 
+[0m09:41:11.887346 [info ] [MainThread]: Finished running 1 table model in 0 hours 0 minutes and 2.08 seconds (2.08s).
+[0m09:41:11.888016 [debug] [MainThread]: Command end result
+[0m09:41:11.923764 [debug] [MainThread]: Wrote artifact WritableManifest to C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\dbt\target\manifest.json
+[0m09:41:11.927299 [debug] [MainThread]: Wrote artifact SemanticManifest to C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\dbt\target\semantic_manifest.json
+[0m09:41:11.930092 [debug] [MainThread]: Wrote artifact OsiDocument to C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\dbt\target\osi_document.json
+[0m09:41:11.936983 [debug] [MainThread]: Wrote artifact RunExecutionResult to C:\Users\Yafee Ishraq\Documents\brann_ticket_sales_forecasting\dbt\target\run_results.json
+[0m09:41:11.937307 [info ] [MainThread]: 
+[0m09:41:11.937706 [info ] [MainThread]: [32mCompleted successfully[0m
+[0m09:41:11.938011 [info ] [MainThread]: 
+[0m09:41:11.938284 [info ] [MainThread]: Done. PASS=1 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=1
+[0m09:41:11.938671 [warn ] [MainThread]: [[33mWARNING[0m][DeprecationsSummary]: Deprecated functionality
+Summary of encountered deprecations:
+- ConfigDataPathDeprecation: 1 occurrence
+To see all deprecation instances instead of just the first occurrence of each,
+run command again with the `--show-all-deprecations` flag. You may also need to
+run with `--no-partial-parse` as some deprecations are only encountered during
+parsing.
+[0m09:41:11.939490 [debug] [MainThread]: Command `dbt run` succeeded at 09:41:11.939407 after 4.06 seconds
+[0m09:41:11.939749 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'end', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x00000242D0AF3ED0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x00000242D06C7AD0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x00000242D0425950>]}
+[0m09:41:11.940001 [debug] [MainThread]: Flushing usage events
+[0m09:41:12.629115 [debug] [MainThread]: An error was encountered while trying to flush usage events
