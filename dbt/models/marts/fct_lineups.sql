@@ -2,7 +2,7 @@
 
 
 with final as (
-   {{ union_tables_by_prefix('raw_match_statistics') }}
+   {{ union_tables_by_prefix('raw_eliterserien_lineups_') }}
 )
 
 select *
