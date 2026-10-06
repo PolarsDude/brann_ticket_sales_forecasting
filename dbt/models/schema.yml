@@ -7,11 +7,31 @@ sources:
     tables:
       - name: raw_eliteserien_results
         description: Raw Eliteserien match results (season, date, matchday, home_team, away_team, result, snapshot_at, ingested_at)
-      - name: raw_eliteserien_goal_scorers
-        description: Raw goal-scoring events from Eliteserien match reports
-      - name: raw_match_statistics
-        description: Raw match statistics from Eliteserien match reports, such as possession, shots, and fouls, xg etc.
-
+      - name: raw_eliterserien_goal_contributions_2021
+        description: Raw goal-contribution events scraped from Transfermarkt match reports for the 2021 Eliteserien season.
+      - name: raw_eliterserien_goal_contributions_2022
+        description: Raw goal-contribution events scraped from Transfermarkt match reports for the 2022 Eliteserien season.
+      - name: raw_eliterserien_goal_contributions_2023
+        description: Raw goal-contribution events scraped from Transfermarkt match reports for the 2023 Eliteserien season.
+      - name: raw_eliterserien_goal_contributions_2024
+        description: Raw goal-contribution events scraped from Transfermarkt match reports for the 2024 Eliteserien season.
+      - name: raw_eliterserien_goal_contributions_2025
+        description: Raw goal-contribution events scraped from Transfermarkt match reports for the 2025 Eliteserien season.
+      - name: raw_eliterserien_goal_contributions_2026
+        description: Raw goal-contribution events scraped from Transfermarkt match reports for the 2026 Eliteserien season.
+      - name: raw_eliterserien_lineups_2021
+        description: Raw FotMob starting-lineup, substitute, and substitution records for the 2021 Eliteserien season.
+      - name: raw_eliterserien_lineups_2022
+        description: Raw FotMob starting-lineup, substitute, and substitution records for the 2022 Eliteserien season.
+      - name: raw_eliterserien_lineups_2023
+        description: Raw FotMob starting-lineup, substitute, and substitution records for the 2023 Eliteserien season.
+      - name: raw_eliterserien_lineups_2024
+        description: Raw FotMob starting-lineup, substitute, and substitution records for the 2024 Eliteserien season.
+      - name: raw_eliterserien_lineups_2025
+        description: Raw FotMob starting-lineup, substitute, and substitution records for the 2025 Eliteserien season.
+      - name: raw_eliterserien_lineups_2026
+        description: Raw FotMob starting-lineup, substitute, and substitution records for the 2026 Eliteserien season.
+      
 models:
   - name: dim_teams
     description: "Canonical team names available in each Eliteserien season. Use it to resolve partial names such as 'Rosenborg' to 'Rosenborg BK'."
@@ -67,30 +87,44 @@ models:
       - name: position
         description: "Team's position in the league table after this matchday"
 
-  - name: fct_goal_scorers
-    description: "One row per recorded goal in an Eliteserien match."
+  - name: fct_goal_contributions
+    description: "One row per goal event in an Eliteserien match, including the scorer and any recorded assist. Rows may repeat at the season, date, home_team, away_team, scorer_name level when a player scores multiple times in a match, including scoring both a regular goal and an own goal. Repeated assist_name values in a match may likewise mean that the player provided multiple assists. These repeated values represent separate goal events and are not necessarily duplicate records."
     columns:
       - name: season
         description: "Calendar year of the Eliteserien season"
       - name: date
-        description: "Date of the match"
+        description: "Date when the match was played"
+      - name: home_team
+        description: "Name of the home team"
+      - name: away_team
+        description: "Name of the away team"
       - name: matchday
         description: "The round number in the season"
-      - name: home_team
-        description: "Home team"
-      - name: away_team
-        description: "Away team"
       - name: result
-        description: "Final score of the match"
-      - name: scorer_team
-        description: "Team credited with the goal"
+        description: "Final match result"
       - name: scorer_name
-        description: "Player credited with the goal"
+        description: "Name of the player credited with the goal"
+      - name: scorer_player_id
+        description: "Transfermarkt player ID of the goal scorer, when available"
+      - name: assist_name
+        description: "Name of the player credited with the assist, when available"
+      - name: assist_player_id
+        description: "Transfermarkt player ID of the assister, when available"
+      - name: scorer_team
+        description: "Team credited with scoring the goal"
+      - name: home_or_away
+        description: "Whether the goal was scored by the home or away team"
+      - name: score
+        description: "Score shown for the goal event in the match report"
+      - name: report_url
+        description: "URL of the Transfermarkt match report used as the source"
+      - name: snapshot_at
+        description: "Timestamp when the source data was scraped"
       - name: ingested_at
         description: "Timestamp when the record was loaded into DuckDB"
 
-  - name: fct_match_statistics
-    description: "One row per match with the raw event-by-event match statistics collected from SofaScore, including possession, shots, expected goals, fouls, corners, and other match-level metrics. This table is used as the detailed statistical layer before downstream analysis or aggregation."
+  - name: fct_lineups
+    description: "One row per player listed in a FotMob match lineup, including starters and substitutes. Substitution rows identify the player entering or leaving, their counterpart, and the substitution time."
     columns:
       - name: season
         description: "Calendar year of the Eliteserien season"
@@ -99,36 +133,48 @@ models:
       - name: matchday
         description: "The round number in the season"
       - name: home_team
-        description: "Home team name"
+        description: "Name of the home team"
       - name: away_team
-        description: "Away team name"
+        description: "Name of the away team"
+      - name: report_url
+        description: "URL of the FotMob match report used as the source"
+      - name: team_name
+        description: "Team the player was listed for"
+      - name: home_or_away
+        description: "Whether the player's team was playing at home or away"
+      - name: formation
+        description: "Team formation shown in the match report, when available"
+      - name: player_name
+        description: "Player's name"
+      - name: player_id
+        description: "FotMob player ID, when available"
+      - name: shirt_number
+        description: "Player's shirt number, when available"
+      - name: player_status
+        description: "Whether the player was listed as a starter or substitute"
+      - name: position
+        description: "Player's usual position category from FotMob, when available"
+      - name: position_source
+        description: "Source used to determine the player's position"
+      - name: formation_top
+        description: "Player's vertical position on the formation graphic, as a percentage"
+      - name: formation_left
+        description: "Player's horizontal position on the formation graphic, as a percentage"
+      - name: substitute_used
+        description: "Whether a listed substitute was used; null for starters"
+      - name: substitution_type
+        description: "Whether the player entered ('in') or left ('out') during a substitution"
+      - name: substitution_time
+        description: "Match time of the substitution, including added time when provided by FotMob"
+      - name: substitution_partner_name
+        description: "Name of the player entering or leaving in exchange for this player"
+      - name: substitution_partner_id
+        description: "FotMob player ID of the substitution partner"
       - name: result
-        description: "Final score of the match in the form 'X:Y'"
-      - name: home_xg_all
-        description: "Expected goals for the home team across the full match"
-      - name: away_xg_all
-        description: "Expected goals for the away team across the full match"
-      - name: home_xg_1st
-        description: "Expected goals for the home team in the first half"
-      - name: away_xg_1st
-        description: "Expected goals for the away team in the first half"
-      - name: home_xg_2nd
-        description: "Expected goals for the home team in the second half"
-      - name: away_xg_2nd
-        description: "Expected goals for the away team in the second half"
-      - name: possession_home
-        description: "Home team's possession share in percent"
-      - name: possession_away
-        description: "Away team's possession share in percent"
-      - name: shots_home
-        description: "Total shots taken by the home team"
-      - name: shots_away
-        description: "Total shots taken by the away team"
-      - name: fouls_home
-        description: "Number of fouls committed by the home team"
-      - name: fouls_away
-        description: "Number of fouls committed by the away team"
+        description: "Final match result"
+      - name: snapshot_at
+        description: "Timestamp when the source data was scraped"
       - name: ingested_at
-        description: "Timestamp when the data was loaded into DuckDB"
+        description: "Timestamp when the record was loaded into DuckDB"
 
  

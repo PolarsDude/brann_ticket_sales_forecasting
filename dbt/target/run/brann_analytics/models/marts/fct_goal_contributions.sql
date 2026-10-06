@@ -23,6 +23,12 @@ with final as (
 
 
 
+select * from "raw_eliterserien_goal_contributions_2021"
+union all
+
+select * from "raw_eliterserien_goal_contributions_2022"
+union all
+
 select * from "raw_eliterserien_goal_contributions_2023"
 union all
 

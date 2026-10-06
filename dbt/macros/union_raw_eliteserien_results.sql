@@ -20,7 +20,7 @@
 
 {% for table_name in matching_tables %}
 select * from {{ adapter.quote(table_name) }}
-{% if not loop.last %}union all{% endif %}
+{% if not loop.last %}union all by name{% endif %}
 {% endfor %}
 
 {% endmacro %}

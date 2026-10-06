@@ -7,6 +7,7 @@ from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeoutError
 from collections import Counter
 from datetime import date, datetime, timezone
+from functools import lru_cache
 from html import unescape
 import re
 import sys
@@ -1644,6 +1645,28 @@ def scrape_transfermarkt_goal_contributions(
     return goal_rows
 
 
+@lru_cache(maxsize=4096)
+def _scrape_transfermarkt_player_name(
+    player_id: int,
+    timeout_seconds: int,
+) -> str | None:
+    response = requests.get(
+        f"{TRANSFERMARKT_BASE_URL}/-/profil/spieler/{player_id}",
+        headers={"User-Agent": REQUEST_HEADERS["User-Agent"]},
+        timeout=timeout_seconds,
+    )
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, "html.parser")
+    headline = soup.select_one("h1.data-header__headline-wrapper")
+    if headline is None:
+        return None
+
+    shirt_number = headline.select_one(".data-header__shirt-number")
+    if shirt_number is not None:
+        shirt_number.decompose()
+    return " ".join(headline.stripped_strings) or None
+
+
 def scrape_transfermarkt_lineups(
     report_url: str,
     timeout_seconds: int = 30,
@@ -1769,6 +1792,16 @@ def scrape_transfermarkt_lineups(
             player_id_match = re.search(
                 r"/spieler/(\d+)", player_link.get("href", "")
             )
+            player_id = int(player_id_match.group(1)) if player_id_match else None
+            player_name = player_link.get("title") or " ".join(player_link.stripped_strings)
+            if player_id is not None:
+                try:
+                    player_name = _scrape_transfermarkt_player_name(
+                        player_id,
+                        timeout_seconds,
+                    ) or player_name
+                except requests.RequestException:
+                    pass
             rows.append(
                 {
                     "season": season,
@@ -1780,11 +1813,8 @@ def scrape_transfermarkt_lineups(
                     "team_name": team_name,
                     "home_or_away": home_or_away,
                     "formation": formation,
-                    "player_name": player_link.get("title")
-                    or " ".join(player_link.stripped_strings),
-                    "player_id": (
-                        int(player_id_match.group(1)) if player_id_match else None
-                    ),
+                    "player_name": player_name,
+                    "player_id": player_id,
                     "shirt_number": (
                         int(shirt_number_text)
                         if shirt_number_text and shirt_number_text.isdigit()
@@ -1817,6 +1847,16 @@ def scrape_transfermarkt_lineups(
             player_id_match = re.search(
                 r"/spieler/(\d+)", player_link.get("href", "")
             )
+            player_id = int(player_id_match.group(1)) if player_id_match else None
+            player_name = player_link.get("title") or " ".join(player_link.stripped_strings)
+            if player_id is not None:
+                try:
+                    player_name = _scrape_transfermarkt_player_name(
+                        player_id,
+                        timeout_seconds,
+                    ) or player_name
+                except requests.RequestException:
+                    pass
             rows.append(
                 {
                     "season": season,
@@ -1828,11 +1868,8 @@ def scrape_transfermarkt_lineups(
                     "team_name": team_name,
                     "home_or_away": home_or_away,
                     "formation": formation,
-                    "player_name": player_link.get("title")
-                    or " ".join(player_link.stripped_strings),
-                    "player_id": (
-                        int(player_id_match.group(1)) if player_id_match else None
-                    ),
+                    "player_name": player_name,
+                    "player_id": player_id,
                     "shirt_number": (
                         int(shirt_number_text)
                         if shirt_number_text and shirt_number_text.isdigit()
@@ -1865,57 +1902,181 @@ def scrape_eliteserien_lineups_for_season(
     if timeout_seconds <= 0:
         raise ValueError("timeout_seconds må være større enn 0.")
 
-    season_id, year = season
-    matches = scrape_eliteserien_results(season_id=season_id, year=year)
-    matches_with_reports = [match for match in matches if match.get("report_url")]
+    year = season[1] or season[0]
+    matches = scrape_fotmob_eliteserien_results_for_year(year)
     all_rows: list[dict[str, Any]] = []
     snapshot_at = datetime.now(timezone.utc)
 
-    for index, match in enumerate(matches_with_reports):
-        if index:
-            sleep(delay_seconds)
+    with requests.Session() as session:
+        session.headers.update({**REQUEST_HEADERS, "Accept": "application/json"})
+        for index, match in enumerate(matches):
+            if index:
+                sleep(delay_seconds)
 
-        home_team = match["home_team"]
-        away_team = match["away_team"]
-        match_date = match["date"]
-        print(
-            f"Scraping lineups {index + 1}/{len(matches_with_reports)} | "
-            f"{home_team} vs {away_team} ({match_date})",
-            flush=True,
-        )
-
-        try:
-            lineup_rows = scrape_transfermarkt_lineups(
-                match["report_url"],
-                timeout_seconds=timeout_seconds,
-            )
-        except requests.RequestException as error:
             print(
-                f"Skipping {home_team} vs {away_team} ({match_date}): {error}",
+                f"Scraping FotMob lineups {index + 1}/{len(matches)} | "
+                f"{match['home_team']} vs {match['away_team']} ({match['date']})",
                 flush=True,
             )
-            continue
+            try:
+                response = session.get(
+                    "https://www.fotmob.com/api/data/matchDetails",
+                    params={"matchId": match["match_id"]},
+                    timeout=timeout_seconds,
+                )
+                response.raise_for_status()
+                details = response.json()
+            except (requests.RequestException, ValueError) as error:
+                print(
+                    f"Skipping {match['home_team']} vs {match['away_team']} "
+                    f"({match['date']}): {error}",
+                    flush=True,
+                )
+                continue
 
-        all_rows.extend(
-            {
-                **lineup_row,
-                "season": year,
-                "date": match_date,
-                "matchday": match.get("matchday"),
-                "home_team": home_team,
-                "away_team": away_team,
-                "result": match.get("result"),
-                "snapshot_at": snapshot_at,
-            }
-            for lineup_row in lineup_rows
-        )
-        print(
-            f"Done {index + 1}/{len(matches_with_reports)} | "
-            f"players={len(lineup_rows)}",
-            flush=True,
-        )
+            lineup_rows = _extract_fotmob_lineup_rows(
+                match=match,
+                details=details,
+                season=year,
+                snapshot_at=snapshot_at,
+            )
+            if not lineup_rows:
+                print(
+                    f"No FotMob lineup returned for {match['home_team']} vs "
+                    f"{match['away_team']} ({match['date']})",
+                    flush=True,
+                )
+                continue
+
+            all_rows.extend(lineup_rows)
+            print(
+                f"Done {index + 1}/{len(matches)} | players={len(lineup_rows)}",
+                flush=True,
+            )
 
     return all_rows
+
+
+def _extract_fotmob_lineup_rows(
+    match: dict[str, Any],
+    details: dict[str, Any],
+    season: int,
+    snapshot_at: datetime,
+) -> list[dict[str, Any]]:
+    content = details.get("content") or {}
+    lineup = content.get("lineup") or {}
+    if not isinstance(lineup, dict):
+        return []
+
+    substitutions: dict[int, dict[str, Any]] = {}
+    events = (content.get("matchFacts") or {}).get("events") or {}
+    for event in events.get("events", []):
+        if not isinstance(event, dict) or event.get("type") != "Substitution":
+            continue
+        swap = event.get("swap")
+        if not isinstance(swap, list) or len(swap) != 2:
+            continue
+        incoming, outgoing = swap
+        if not isinstance(incoming, dict) or not isinstance(outgoing, dict):
+            continue
+        try:
+            incoming_id = int(incoming["id"])
+            outgoing_id = int(outgoing["id"])
+        except (KeyError, TypeError, ValueError):
+            continue
+
+        substitution_time = event.get("timeStr", event.get("time"))
+        substitutions[incoming_id] = {
+            "substitution_type": "in",
+            "substitution_time": (
+                str(substitution_time) if substitution_time is not None else None
+            ),
+            "substitution_partner_name": outgoing.get("name"),
+            "substitution_partner_id": outgoing_id,
+        }
+        substitutions[outgoing_id] = {
+            "substitution_type": "out",
+            "substitution_time": (
+                str(substitution_time) if substitution_time is not None else None
+            ),
+            "substitution_partner_name": incoming.get("name"),
+            "substitution_partner_id": incoming_id,
+        }
+
+    position_names = {0: "GK", 1: "DEF", 2: "MID", 3: "FWD"}
+    rows: list[dict[str, Any]] = []
+    for side, home_or_away in (("homeTeam", "home"), ("awayTeam", "away")):
+        team = lineup.get(side)
+        if not isinstance(team, dict):
+            continue
+        for player_group, player_status in (
+            ("starters", "starter"),
+            ("subs", "substitute"),
+        ):
+            for player in team.get(player_group, []):
+                if not isinstance(player, dict):
+                    continue
+                try:
+                    player_id = int(player["id"])
+                except (KeyError, TypeError, ValueError):
+                    player_id = None
+                substitution = substitutions.get(player_id, {}) if player_id else {}
+                try:
+                    usual_position_id = int(player.get("usualPlayingPositionId"))
+                except (TypeError, ValueError):
+                    usual_position_id = -1
+
+                shirt_number = player.get("shirtNumber")
+                rows.append(
+                    {
+                        "season": season,
+                        "date": match["date"],
+                        "matchday": match.get("matchday"),
+                        "home_team": match["home_team"],
+                        "away_team": match["away_team"],
+                        "report_url": match["report_url"],
+                        "team_name": team.get("name"),
+                        "home_or_away": home_or_away,
+                        "formation": team.get("formation"),
+                        "player_name": player.get("name")
+                        or " ".join(
+                            value
+                            for value in (
+                                player.get("firstName"),
+                                player.get("lastName"),
+                            )
+                            if value
+                        ),
+                        "player_id": player_id,
+                        "shirt_number": (
+                            int(shirt_number)
+                            if str(shirt_number or "").isdigit()
+                            else None
+                        ),
+                        "player_status": player_status,
+                        "position": position_names.get(usual_position_id),
+                        "position_source": "fotmob_usual_position",
+                        "formation_top": None,
+                        "formation_left": None,
+                        "substitute_used": (
+                            bool(substitution)
+                            if player_status == "substitute"
+                            else None
+                        ),
+                        "substitution_type": substitution.get("substitution_type"),
+                        "substitution_time": substitution.get("substitution_time"),
+                        "substitution_partner_name": substitution.get(
+                            "substitution_partner_name"
+                        ),
+                        "substitution_partner_id": substitution.get(
+                            "substitution_partner_id"
+                        ),
+                        "result": match.get("result"),
+                        "snapshot_at": snapshot_at,
+                    }
+                )
+
+    return rows
 
 
 def scrape_eliteserien_goal_contributions_for_season(
