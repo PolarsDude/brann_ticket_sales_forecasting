@@ -1,6 +1,6 @@
-# Brann Ticket Sales Forecasting
+# Brann Football Analytics
 
-An intelligent data pipeline for scraping Eliteserien match results and Brann ticket data, storing in DuckDB, and transforming with dbt for advanced analytics.
+A data pipeline for collecting Eliteserien match results, goal contributions, and lineups, storing them in DuckDB, and transforming them with dbt for football analysis.
 
 ## Architecture
 
@@ -25,41 +25,46 @@ data/
 ### 1. Install Dependencies
 ```bash
 uv sync
-pip install dbt-duckdb
 ```
 
-### 2. Run Data Ingestion
+### 2. Create the Data Directory and Database
+Run these commands from the repository root. Create both the directory and the DuckDB file before starting ingestion:
 ```bash
-cd src
-python ingest_data.py
+uv run python -c "from pathlib import Path; Path('data').mkdir(exist_ok=True)"
+uv run python -c "import duckdb; duckdb.connect('data/brann.duckdb').close()"
 ```
 
-This fetches and loads:
-- Eliteserien match results
-- Match details
-- Available events
-- Ticket section data
+### 3. Run Data Ingestion
+Run the ingestion script yourself from the repository root:
+```bash
+uv run python src/ingest_data.py
+```
 
-### 3. Run dbt Transformations
+The script fetches and loads match results and goal-scorer rows for the configured current Eliteserien season. It requires the `data/brann.duckdb` file created in the previous step. Other datasets, including FotMob goal contributions and lineups, are ingested from their corresponding cells in `ingest_data.ipynb`.
+
+### 4. Run dbt Transformations
 ```bash
 cd dbt
-dbt run
+uv run dbt run
 ```
 
-Generates:
-- `stg_eliteserien_results` - Cleaned match data with parsed scores
-- `fct_league_standings` - League table with cumulative stats per matchday
+This builds the available analytics tables:
+- `dim_teams` - Canonical team names by season
+- `fct_goal_contributions` - FotMob goal events, including the `is_own_goal` flag
+- `fct_league_standings` - Cumulative league table by matchday
+- `fct_lineups` - FotMob player lineups and substitution details
+- `fct_matches` - Match results, parsed scores, and winner
 
 ## Data Pipeline Flow
 
 ```
-Web Sources (Transfermarkt, Ticketco)
+Web Sources (FotMob, Transfermarkt)
          ↓
-   utils.py scraping
+   src/utils.py scraping
          ↓
- ingest_data.py (DuckDB raw tables)
+ ingest_data.py and ingest_data.ipynb (DuckDB raw tables)
          ↓
-   dbt staging models
+   dbt models
          ↓
   dbt analytics marts
          ↓

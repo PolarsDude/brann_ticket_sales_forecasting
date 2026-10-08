@@ -1,6 +1,6 @@
 # Brann Analytics dbt Project
 
-This dbt project transforms raw Eliteserien and match data into analytics-ready tables for the Brann ticket sales forecasting agent.
+This dbt project transforms raw Eliteserien match data into analytics-ready tables for football analysis.
 
 ## Project Structure
 
