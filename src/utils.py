@@ -15,6 +15,7 @@ from time import sleep
 from typing import Any
 from urllib.parse import quote_plus, urljoin
 from unicodedata import normalize as unicode_normalize
+from zoneinfo import ZoneInfo
 
 import requests
 from bs4 import BeautifulSoup
@@ -691,6 +692,7 @@ def scrape_fotmob_eliteserien_results_for_year(
         raise RuntimeError(f"Fant ikke kampoppsett for Eliteserien {year} hos FotMob.")
 
     results: list[dict[str, Any]] = []
+    snapshot_at = datetime.now(timezone.utc)
     for match in fixtures:
         status = match.get("status", {})
         if not status.get("finished"):
@@ -701,17 +703,19 @@ def scrape_fotmob_eliteserien_results_for_year(
             continue
 
         utc_time = datetime.fromisoformat(status["utcTime"].replace("Z", "+00:00"))
+        round_match = re.search(r"\d+", str(match.get("roundName", "")))
         results.append(
             {
-                "date": utc_time.date(),
-                "matchday": match.get("roundName"),
+                "date": utc_time.astimezone(ZoneInfo("Europe/Oslo")).date(),
+                "matchday": int(round_match.group()) if round_match else None,
                 "home_team": match.get("home", {}).get("name"),
                 "away_team": match.get("away", {}).get("name"),
                 "home_goals": int(score_match.group(1)),
                 "away_goals": int(score_match.group(2)),
-                "result": status["scoreStr"],
+                "result": f"{score_match.group(1)}:{score_match.group(2)}",
                 "match_id": str(match["id"]),
                 "report_url": urljoin("https://www.fotmob.com", match["pageUrl"]),
+                "snapshot_at": snapshot_at,
             }
         )
 

@@ -27,19 +27,19 @@ with raw_eliteserien_results as (
 
 
 select * from "raw_eliteserien_results_2021"
-union all
+union all by name
 
 select * from "raw_eliteserien_results_2022"
-union all
+union all by name
 
 select * from "raw_eliteserien_results_2023"
-union all
+union all by name
 
 select * from "raw_eliteserien_results_2024"
-union all
+union all by name
 
 select * from "raw_eliteserien_results_2025"
-union all
+union all by name
 
 select * from "raw_eliteserien_results_2026"
 
