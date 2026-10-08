@@ -20,9 +20,9 @@ GUIDE_PATH = PROJECT_ROOT / "AGENT_DATABASE_GUIDE.md"
 ALLOWED_TABLES = {
     "dim_teams",
     "fct_matches",
-    "fct_goal_scorers",
+    "fct_goal_contributions",
     "fct_league_standings",
-    "fct_match_statistics",
+    "fct_lineups",
 }
 FORBIDDEN_KEYWORDS = re.compile(
     r"\b(attach|copy|create|delete|drop|export|insert|install|load|update|"
@@ -99,7 +99,8 @@ def generate_sql(state: AgentState) -> dict[str, str]:
 {guide}
 
 Return only one SQL statement. It must start with SELECT or WITH, read only from
-dim_teams, fct_matches, fct_goal_scorers, and/or fct_league_standings, and never use markdown fences or an explanation.
+dim_teams, fct_goal_contributions, fct_league_standings, fct_lineups, and/or
+fct_matches, and never use markdown fences or an explanation.
 
 Always use 'SK Brann' for Brann. For every other team mentioned by the user, resolve
 the name in a CTE from dim_teams with ILIKE before using it in a match or standings
@@ -231,10 +232,12 @@ def summarize_results(state: AgentState) -> dict[str, str]:
         )
 
     result_text = "\n\n".join(blocks)
-    instructions = f"""Svar kort på norsk på brukerens spørsmål.
-Skriv en kort rapport i vanlig tekst, ikke som tabell.
-Strukturer rapporten med en kort innledning, 2-4 funn og en kort konklusjon.
-Ikke gjett eller legg til informasjon som ikke finnes i resultatet.
+    instructions = f"""Svar på norsk og følg formatet brukeren ber om.
+- Hvis brukeren ber om en tabell, vis resultatene som en tabell uten rapporttekst.
+- Skriv en rapport eller oppsummering bare hvis brukeren ber om det.
+- Hvis formatet ikke er spesifisert, gi et kort og direkte svar.
+- Ikke legg til innledning, funn eller konklusjon med mindre det er etterspurt.
+- Ikke gjett eller legg til informasjon som ikke finnes i resultatet.
 Spørsmål: {state['question']}
 
 SQL-resultat:
@@ -280,13 +283,14 @@ workflow.add_edge("summarize_results", END)
 agent = workflow.compile()
 
 
-def run_question(question: str) -> None:
+def run_question(question: str, *, show_sql: bool = False) -> None:
     result = agent.invoke({"question": question})
 
-    sqls = result.get("generated_sqls") or [result.get("sql", "")]
-    for index, sql in enumerate(sqls, start=1):
-        print(f"SQL {index}:\n{sql}\n")
-    print("\nSammendrag:\n" + result["summary"])
+    if show_sql:
+        sqls = result.get("generated_sqls") or [result.get("sql", "")]
+        for index, sql in enumerate(sqls, start=1):
+            print(f"SQL {index}:\n{sql}\n")
+    print(result["summary"])
 
 
 if __name__ == "__main__":
