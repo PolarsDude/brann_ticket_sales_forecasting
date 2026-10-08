@@ -102,9 +102,14 @@ Return only one SQL statement. It must start with SELECT or WITH, read only from
 dim_teams, fct_goal_contributions, fct_league_standings, fct_lineups, and/or
 fct_matches, and never use markdown fences or an explanation.
 
-Always use 'SK Brann' for Brann. For every other team mentioned by the user, resolve
-the name in a CTE from dim_teams with ILIKE before using it in a match or standings
-filter. Never invent, guess, or use an external variant of a team name.
+Resolve every team mentioned by the user, including Brann, to the canonical
+team_name in dim_teams for the requested season before filtering a fact table.
+Translate recognized aliases from the guide (for example, 'SK Brann' to 'Brann'
+and 'Ham-Kam' to 'Hamarkameratene') before looking up the canonical name. For
+partial names, use a CTE that looks up team_name in dim_teams with ILIKE and the
+requested season; use only the returned canonical name in fact-table filters.
+Never hardcode 'SK Brann', use the user's alias directly in a fact-table filter,
+or invent a team name that is not present in dim_teams.
 """
     model = ChatOpenAI(model="gpt-4.1", temperature=0)
     error_feedback = ""

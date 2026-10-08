@@ -29,6 +29,15 @@ This returns `Rosenborg BK`. Use that exact value when querying `fct_matches` or
 
 **Known name resolution:** `Sarpsborg` resolves to `Sarpsborg 08`, not `Sarpsborg 08 FF`.
 
+**Known team aliases:** Map common names and abbreviations to the canonical team name
+before looking it up in `dim_teams`. For example:
+- `SK Brann`, `Sportsklubben Brann` -> `Brann`
+- `Ham-Kam`, `HamKam` -> `Hamarkameratene`
+- `Sarpsborg` -> `Sarpsborg 08`
+
+The canonical name in `dim_teams` is authoritative. Use it for filters in fact tables;
+do not assume a club's full legal name or use the user's wording directly.
+
 ---
 
 ### 2. fct_matches
@@ -147,7 +156,7 @@ SELECT
     winner
 FROM fct_matches
 WHERE season = (SELECT MAX(season) FROM fct_matches)
-    AND (home_team = 'SK Brann' OR away_team = 'SK Brann')
+    AND (home_team = 'Brann' OR away_team = 'Brann')
 ORDER BY date DESC
 LIMIT 5
 ```
@@ -164,7 +173,7 @@ SELECT
     goal_difference,
     matchday
 FROM fct_league_standings
-WHERE team = 'SK Brann'
+WHERE team = 'Brann'
 ORDER BY season DESC, matchday DESC
 LIMIT 1
 ```
@@ -193,12 +202,12 @@ ORDER BY position
 ```sql
 SELECT 
     COUNT(*) as total_wins,
-    COUNT(CASE WHEN home_team = 'SK Brann' THEN 1 END) as home_wins,
-    COUNT(CASE WHEN away_team = 'SK Brann' THEN 1 END) as away_wins
+    COUNT(CASE WHEN home_team = 'Brann' THEN 1 END) as home_wins,
+    COUNT(CASE WHEN away_team = 'Brann' THEN 1 END) as away_wins
 FROM fct_matches
 WHERE season = 2026
-    AND ((home_team = 'SK Brann' AND winner = 'home_team')
-   OR (away_team = 'SK Brann' AND winner = 'away_team')
+    AND ((home_team = 'Brann' AND winner = 'home_team')
+   OR (away_team = 'Brann' AND winner = 'away_team')
     )
 ```
 
@@ -214,8 +223,8 @@ SELECT
     winner
 FROM fct_matches
 WHERE season = 2026
-    AND ((home_team = 'SK Brann' AND away_team = 'Molde FK')
-   OR (home_team = 'Molde FK' AND away_team = 'SK Brann')
+    AND ((home_team = 'Brann' AND away_team = 'Molde FK')
+   OR (home_team = 'Molde FK' AND away_team = 'Brann')
     )
 ORDER BY date
 ```
@@ -229,17 +238,15 @@ FROM fct_matches
 WHERE season = 2026
     AND EXTRACT(MONTH FROM date) = 4
     AND (
-            (home_team = 'SK Brann' AND winner = 'home_team')
-            OR (away_team = 'SK Brann' AND winner = 'away_team')
+            (home_team = 'Brann' AND winner = 'home_team')
+            OR (away_team = 'Brann' AND winner = 'away_team')
     )
 ```
 ---
 
 ## Important Rules for the Agent
 
-1. **Team Name:** Always use `'SK Brann'` as the exact team name (case-sensitive)
-
-    For every other team, always use `dim_teams` to find the exact `team_name` for the requested season before filtering matches or standings. Do not guess a team name from general knowledge. For example, resolve `Rosenborg` to `Rosenborg BK` and `Sarpsborg` to `Sarpsborg 08`.
+1. **Team Names:** Resolve every team, including Brann, to the exact `team_name` in `dim_teams` for the requested season before filtering matches or standings. First translate recognized aliases using the mappings above (for example, `SK Brann` -> `Brann` and `Ham-Kam` -> `Hamarkameratene`), then use the canonical name. Do not hardcode a team name or use an alias directly in a fact-table filter. For partial names, use a `dim_teams` CTE with `ILIKE` and filter the fact table using the returned canonical name. If the lookup does not find a team, do not invent a match.
 
 2. **Winner Values:** Use exact values:
    - `'home_team'` - home team won
@@ -274,17 +281,17 @@ WHERE season = 2026
 ```sql
 -- Wins
 SELECT COUNT(*) FROM fct_matches 
-WHERE ((home_team = 'SK Brann' AND winner = 'home_team') 
-    OR (away_team = 'SK Brann' AND winner = 'away_team'))
+WHERE ((home_team = 'Brann' AND winner = 'home_team') 
+    OR (away_team = 'Brann' AND winner = 'away_team'))
 
 -- Losses
 SELECT COUNT(*) FROM fct_matches 
-WHERE ((home_team = 'SK Brann' AND winner = 'away_team') 
-    OR (away_team = 'SK Brann' AND winner = 'home_team'))
+WHERE ((home_team = 'Brann' AND winner = 'away_team') 
+    OR (away_team = 'Brann' AND winner = 'home_team'))
 
 -- Draws
 SELECT COUNT(*) FROM fct_matches 
-WHERE (home_team = 'SK Brann' OR away_team = 'SK Brann')
+WHERE (home_team = 'Brann' OR away_team = 'Brann')
   AND winner = 'draw'
 ```
 
@@ -295,7 +302,7 @@ Use `fct_league_standings` for the maximum `season`, then the maximum `matchday`
 Query `fct_league_standings` for both teams in the same `season` and matchday.
 
 ### Q: Show me Brann's results this season
-Query `fct_matches` for the maximum `season`, where home_team or away_team is 'SK Brann', ordered by date.
+Query `fct_matches` for the maximum `season`, where home_team or away_team is 'Brann', ordered by date.
 
 ---
 
@@ -310,6 +317,6 @@ Query `fct_matches` for the maximum `season`, where home_team or away_team is 'S
 
 ## Troubleshooting
 
-- **No results returned:** Check that team names match exactly (e.g., 'SK Brann' with proper casing)
+- **No results returned:** Check the exact team name for the season in `dim_teams`; normalize aliases such as `SK Brann` to `Brann` first.
 - **Wrong winner:** Remember `winner` is from the match perspective ('home_team' or 'away_team')
 - **Standings not available:** Make sure you're querying the correct matchday
