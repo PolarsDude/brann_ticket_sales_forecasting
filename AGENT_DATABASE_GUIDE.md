@@ -50,7 +50,7 @@ This returns `Rosenborg BK`. Use that exact value when querying `fct_matches` or
 **Key Features:**
 - Complete match history with parsed scoring information
 - Winner column simplifies queries about who won each match
-- All Eliteserien matches from 2015 through the current season
+- Includes the seasons currently loaded into DuckDB
 
 ---
 
@@ -74,42 +74,62 @@ This returns `Rosenborg BK`. Use that exact value when querying `fct_matches` or
 
 ---
 
-### 4. fct_match_statistics
-**Description:** One row per completed Eliteserien match with optional expected-goals (xG) and selected SofaScore match statistics. Use this table for questions about chance quality, xG differences, and match statistics. The data is produced by `scrape_eliteserien_all_xg_for_seasons` and must be loaded into DuckDB before the agent can query it.
+### 4. fct_goal_contributions
+**Description:** One row per goal in a completed Eliteserien match, with the credited scorer, any recorded assist, and the score after the goal. The data comes from FotMob match details. Use this table for questions about scorers, assists, and own goals.
 
 **Columns:**
 - `season` (INTEGER): Calendar year of the Eliteserien season.
 - `date` (DATE): Date of the match.
-- `matchday` (INTEGER): The round number in the season.
-- `home_team` (VARCHAR): Name of the home team.
-- `away_team` (VARCHAR): Name of the away team.
-- `result` (VARCHAR): Final score in the format `X:Y`.
-- `sofascore_event_id` (INTEGER): SofaScore's unique event identifier.
-- `sofascore_url` (VARCHAR): URL for the SofaScore match.
-- `home_xg_all` / `away_xg_all` (DOUBLE): Total expected goals (ALL tab) for the home and away team.
-- `home_xg_1st` / `away_xg_1st` (DOUBLE): Expected goals in the first half.
-- `home_xg_2nd` / `away_xg_2nd` (DOUBLE): Expected goals in the second half.
-- `home_ballpossession` / `away_ballpossession` (DOUBLE): Ball possession percentage.
-- `home_kilometerscovered` / `away_kilometerscovered` (DOUBLE): Distance covered in kilometres; total match only.
-- `home_bigchancecreated` / `away_bigchancecreated` (INTEGER): Big chances created.
-- `home_totalshotsongoal` / `away_totalshotsongoal` (INTEGER): Shots on target.
-- `home_goalkeepersaves` / `away_goalkeepersaves` (INTEGER): Goalkeeper saves.
-- `home_numberofsprints` / `away_numberofsprints` (INTEGER): Number of sprints; total match only.
-- `home_cornerkicks` / `away_cornerkicks` (INTEGER): Corner kicks.
-- `home_fouls` / `away_fouls` (INTEGER): Fouls committed.
-- `home_freekicks` / `away_freekicks` (INTEGER): Free kicks.
-- `home_passes` / `away_passes` (INTEGER): Completed passes.
-- `home_totaltackle` / `away_totaltackle` (INTEGER): Tackles.
-- `home_yellowcards` / `away_yellowcards` (INTEGER): Yellow cards.
-- xG, ball possession, big chances created, shots on target, goalkeeper saves, corner kicks, fouls, free kicks, passes, tackles, and yellow cards also have `_1st` and `_2nd` fields for the first and second half. For example, `home_fouls_1st` and `home_fouls_2nd`.
-- `snapshot_at` (TIMESTAMP): When the xG and match-statistics data was fetched from SofaScore.
+- `matchday` (INTEGER): Round number in the season.
+- `home_team` / `away_team` (VARCHAR): Teams in the match.
+- `result` (VARCHAR): Final score in `X:Y` format.
+- `scorer_name` (VARCHAR): Player credited with the goal; for an own goal, this is the player who put the ball into their own net.
+- `scorer_player_id` (INTEGER): FotMob player ID, when available.
+- `is_own_goal` (BOOLEAN): `true` when FotMob marks the event as an own goal; `false` for a regular goal.
+- `assist_name` (VARCHAR): Player credited with the assist, when available.
+- `assist_player_id` (INTEGER): FotMob player ID of the assister, when available.
+- `scorer_team` (VARCHAR): Team credited with the goal. For an own goal, this can differ from the player's team.
+- `home_or_away` (VARCHAR): Whether the credited goal belongs to the home or away team.
+- `score` (VARCHAR): Score immediately after the goal, in `X:Y` format.
+- `report_url` (VARCHAR): FotMob match URL used as the source.
+- `snapshot_at` / `ingested_at` (TIMESTAMP): When source data was fetched / loaded into DuckDB.
 
 **Key Features:**
-- xG fields are team-relative: `home_*` always belongs to `home_team`, and `away_*` to `away_team`.
-- xG is stored only as numeric `*_all`, `*_1st`, and `*_2nd` values; no duplicate `*_display` columns are available.
-- Older matches can have match statistics without xG; in those rows, xG fields are NULL while available statistics are retained.
-- When SofaScore provides total xG but lacks one or both half-periods, `*_xg_all` is retained and only the missing `*_xg_1st` or `*_xg_2nd` fields are NULL.
-- The source may omit a selected statistic; treat NULL as unavailable, not zero.
+- Each goal is a separate row. Do not deduplicate by scorer or match; a player can score both regular goals and own goals in the same match.
+- On own goals, `scorer_name` identifies the player who scored into their own net, while `scorer_team` and `home_or_away` identify the team credited with the goal.
+- `is_own_goal` is a boolean. Filter with `is_own_goal = true` for own goals; do not infer own goals by comparing the player and credited team.
+
+---
+
+### 5. fct_lineups
+**Description:** One row per player listed in a FotMob match lineup, including starters and substitutes. Use this table for lineups, formations, positions, and substitution participation.
+
+**Columns:**
+- `season` (INTEGER): Calendar year of the Eliteserien season.
+- `date` (DATE): Date of the match.
+- `matchday` (INTEGER): Round number in the season.
+- `home_team` / `away_team` (VARCHAR): Teams in the match.
+- `report_url` (VARCHAR): FotMob match URL used as the source.
+- `team_name` (VARCHAR): Team the player represented in the match.
+- `home_or_away` (VARCHAR): Whether the player's team played at home or away.
+- `formation` (VARCHAR): Team formation, when available.
+- `player_name` (VARCHAR): Player's name.
+- `player_id` (INTEGER): FotMob player ID, when available.
+- `shirt_number` (INTEGER): Shirt number, when available.
+- `player_status` (VARCHAR): `starter` or `substitute`.
+- `position` (VARCHAR): FotMob's usual position category, when available.
+- `position_source` (VARCHAR): Source used to determine the position.
+- `formation_top` / `formation_left` (DOUBLE): Formation graphic coordinates as percentages, when available.
+- `substitute_used` (BOOLEAN): Whether a listed substitute played; NULL for starters.
+- `substitution_type` (VARCHAR): `in` or `out` when a substitution event is available.
+- `substitution_time` (VARCHAR): Substitution time, including added time when provided.
+- `substitution_partner_name` / `substitution_partner_id`: Player entering or leaving in the same substitution.
+- `result` (VARCHAR): Final score in `X-Y` format from FotMob.
+- `snapshot_at` / `ingested_at` (TIMESTAMP): When source data was fetched / loaded into DuckDB.
+
+**Key Features:**
+- A substitute may appear in the lineup without playing; use `substitute_used` to distinguish this where it is populated.
+- Match and team filters should include `season` because team lineups recur across seasons.
 
 ---
 

@@ -2079,6 +2079,72 @@ def _extract_fotmob_lineup_rows(
     return rows
 
 
+def _extract_fotmob_goal_contribution_rows(
+    match: dict[str, Any],
+    details: dict[str, Any],
+    season: int,
+    snapshot_at: datetime,
+) -> list[dict[str, Any]]:
+    """Normalize FotMob goal events into goal-contribution rows."""
+    content = details.get("content") or {}
+    match_facts = content.get("matchFacts") or {}
+    event_data = match_facts.get("events") or {}
+    events = event_data.get("events", [])
+    matchday_match = re.search(r"\d+", str(match.get("matchday", "")))
+    rows: list[dict[str, Any]] = []
+
+    for event in events:
+        if not isinstance(event, dict) or event.get("type") != "Goal":
+            continue
+
+        player = event.get("player") or {}
+        player_name = player.get("name") or event.get("nameStr")
+        player_id = player.get("id") or event.get("playerId")
+        own_goal = bool(
+            event.get("ownGoal")
+            or (event.get("shotmapEvent") or {}).get("isOwnGoal")
+        )
+        is_home = event.get("isHome")
+        scoring_team = (
+            match["home_team"] if is_home else match["away_team"]
+        ) if is_home is not None else None
+        new_score = event.get("newScore")
+        score = (
+            f"{new_score[0]}:{new_score[1]}"
+            if isinstance(new_score, list) and len(new_score) == 2
+            else None
+        )
+        assist_name = event.get("assistInput")
+        if assist_name is None:
+            assist_text = event.get("assistStr") or ""
+            assist_name = assist_text.removeprefix("assist by ") or None
+
+        rows.append(
+            {
+                "season": season,
+                "date": match["date"],
+                "matchday": int(matchday_match.group()) if matchday_match else None,
+                "home_team": match["home_team"],
+                "away_team": match["away_team"],
+                "result": f"{match['home_goals']}:{match['away_goals']}",
+                "scorer_name": player_name,
+                "scorer_player_id": player_id,
+                "assist_name": assist_name,
+                "assist_player_id": event.get("assistPlayerId"),
+                "scorer_team": scoring_team,
+                "home_or_away": (
+                    "home" if is_home else "away"
+                ) if is_home is not None else None,
+                "score": score,
+                "is_own_goal": own_goal,
+                "report_url": match["report_url"],
+                "snapshot_at": snapshot_at,
+            }
+        )
+
+    return rows
+
+
 def scrape_eliteserien_goal_contributions_for_season(
     season: tuple[int, int] = (2025, 2026),
     delay_seconds: float = 2.0,
@@ -2092,45 +2158,45 @@ def scrape_eliteserien_goal_contributions_for_season(
     if timeout_seconds <= 0:
         raise ValueError("timeout_seconds må være større enn 0.")
 
-    season_id, year = season
-    matches = scrape_eliteserien_results(season_id=season_id, year=year)
+    _, year = season
+    matches = scrape_fotmob_eliteserien_results_for_year(year)
     if not matches:
         return []
 
     snapshot_at = datetime.now(timezone.utc)
     all_rows: list[dict[str, Any]] = []
-    completed_matches = [match for match in matches if match.get("report_url")]
-    for index, match in enumerate(completed_matches):
-        if index:
-            sleep(delay_seconds)
-        print(
-            f"Scraping goals {index + 1}/{len(completed_matches)} | "
-            f"{match['home_team']} vs {match['away_team']} ({match['date']})",
-            flush=True,
-        )
-        try:
-            goal_rows = scrape_transfermarkt_goal_contributions(
-                match["report_url"],
-                timeout_seconds=timeout_seconds,
-                match_metadata={"season": year, **match},
-            )
-            all_rows.extend(
-                {
-                    **goal_row,
-                    "season": year,
-                    "date": match["date"],
-                    "matchday": match["matchday"],
-                    "home_team": match["home_team"],
-                    "away_team": match["away_team"],
-                    "result": match["result"],
-                    "snapshot_at": snapshot_at,
-                }
-                for goal_row in goal_rows
-            )
-        except requests.RequestException as error:
+    with requests.Session() as session:
+        session.headers.update({**REQUEST_HEADERS, "Accept": "application/json"})
+        for index, match in enumerate(matches):
+            if index:
+                sleep(delay_seconds)
             print(
-                f"Skipping {match['home_team']} vs {match['away_team']}: {error}",
+                f"Scraping FotMob goals {index + 1}/{len(matches)} | "
+                f"{match['home_team']} vs {match['away_team']} ({match['date']})",
                 flush=True,
+            )
+            try:
+                response = session.get(
+                    "https://www.fotmob.com/api/data/matchDetails",
+                    params={"matchId": match["match_id"]},
+                    timeout=timeout_seconds,
+                )
+                response.raise_for_status()
+                details = response.json()
+            except (requests.RequestException, ValueError) as error:
+                print(
+                    f"Skipping {match['home_team']} vs {match['away_team']}: {error}",
+                    flush=True,
+                )
+                continue
+
+            all_rows.extend(
+                _extract_fotmob_goal_contribution_rows(
+                    match=match,
+                    details=details,
+                    season=year,
+                    snapshot_at=snapshot_at,
+                )
             )
 
     return all_rows
