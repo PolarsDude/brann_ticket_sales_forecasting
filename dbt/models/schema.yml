@@ -40,6 +40,16 @@ models:
         description: "Calendar year of the Eliteserien season"
       - name: team_name
         description: "Canonical team name used by fct_matches and fct_league_standings"
+  
+  - name: dim_players
+    description: "Canonical player names available in each Eliteserien season. Use it to resolve partial names such as 'Zlatko' to 'Zlatko Tripic'."
+    columns:
+      - name: player_id
+        description: "Unique identifier for the player"
+      - name: latest_name
+        description: "Latest known name of the player"
+      - name: latest_date
+        description: "The date when the latest name was recorded"
 
   - name: fct_matches
     description: "One row per match per round. Contains match results with parsed goals and winner information."
