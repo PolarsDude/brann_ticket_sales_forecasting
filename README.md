@@ -74,3 +74,7 @@ Web Sources (FotMob, Transfermarkt)
 ## Notebooks
 
 - `notebook.ipynb` - Exploration and analysis notebooks
+
+## TODO
+
+- Update `fct_lineups` to join player names from `dim_players` instead of using the names stored in the lineup data.
