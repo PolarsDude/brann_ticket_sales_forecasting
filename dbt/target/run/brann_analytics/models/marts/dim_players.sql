@@ -26,15 +26,56 @@
       AND assist_name IS NOT NULL
 ),
 
+/* Union all years */
+all_player_names_lineups_1 as (
+
+
+
+
+
+
+
+
+    
+    
+
+
+
+
+
+select * from "raw_eliterserien_lineups_2021"
+union all by name
+
+select * from "raw_eliterserien_lineups_2022"
+union all by name
+
+select * from "raw_eliterserien_lineups_2023"
+union all by name
+
+select * from "raw_eliterserien_lineups_2024"
+union all by name
+
+select * from "raw_eliterserien_lineups_2025"
+union all by name
+
+select * from "raw_eliterserien_lineups_2026"
+
+
+
+
+
+),
+
+
 /* All player names from lineups */
-all_player_names_lineups AS (
+all_player_names_lineups_2 AS (
 
 SELECT
     distinct
     player_id,
     player_name AS latest_name,
     date AS latest_date
-FROM "brann"."main"."fct_lineups"
+FROM all_player_names_lineups_1
 
 ),
 
@@ -42,7 +83,7 @@ FROM "brann"."main"."fct_lineups"
 all_player_names AS (
     SELECT * FROM all_player_names_goal_contributions
     UNION ALL
-    SELECT * FROM all_player_names_lineups
+    SELECT * FROM all_player_names_lineups_2
 ),
 
 

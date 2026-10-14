@@ -43,6 +43,12 @@ select * from "raw_eliterserien_lineups_2026"
 
 
 
+),
+
+
+dim_players as (
+   select *
+   from "brann"."main"."dim_players"
 )
 
 select *

@@ -18,15 +18,24 @@ WITH all_player_names_goal_contributions AS (
       AND assist_name IS NOT NULL
 ),
 
+/* Union all years */
+all_player_names_lineups_1 as (
+
+
+{{ union_tables_by_prefix('raw_eliterserien_lineups_') }}
+
+),
+
+
 /* All player names from lineups */
-all_player_names_lineups AS (
+all_player_names_lineups_2 AS (
 
 SELECT
     distinct
     player_id,
     player_name AS latest_name,
     date AS latest_date
-FROM {{ref('fct_lineups')}}
+FROM all_player_names_lineups_1
 
 ),
 
@@ -34,7 +43,7 @@ FROM {{ref('fct_lineups')}}
 all_player_names AS (
     SELECT * FROM all_player_names_goal_contributions
     UNION ALL
-    SELECT * FROM all_player_names_lineups
+    SELECT * FROM all_player_names_lineups_2
 ),
 
 
