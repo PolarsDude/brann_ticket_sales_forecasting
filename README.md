@@ -77,4 +77,4 @@ Web Sources (FotMob, Transfermarkt)
 
 ## TODO
 
-- Update `fct_lineups` to join player names from `dim_players` instead of using the names stored in the lineup data.
+- Scrape match statistics 
