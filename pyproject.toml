@@ -23,4 +23,5 @@ dependencies = [
 dev = [
     "ipykernel>=7.3.0",
     "pre-commit>=4.6.2",
+    "typesafe-sdk>=0.7.5",
 ]

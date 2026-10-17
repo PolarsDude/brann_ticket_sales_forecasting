@@ -2,6 +2,18 @@
 
 This guide provides all necessary information for the text-to-SQL agent to query the Brann football database.
 
+## Player Name Resolution
+
+The application resolves an explicitly named player before SQL is generated.
+The resolved `player_id` and canonical `latest_name` are supplied in the agent
+context. Always filter player facts with that `player_id`, never by a
+user-provided player name:
+
+- In `fct_lineups`, use `player_id`.
+- In `fct_goal_contributions`, use `scorer_player_id` for goals,
+  `assist_player_id` for assists, and either column for questions about both.
+- Do not attempt a second player-name lookup or substitute another player.
+
 ## Database Connection
 
 - **Type:** DuckDB

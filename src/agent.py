@@ -18,6 +18,7 @@ from src.config import DB_PATH, PROJECT_ROOT
 
 GUIDE_PATH = PROJECT_ROOT / "AGENT_DATABASE_GUIDE.md"
 ALLOWED_TABLES = {
+    "dim_players",
     "dim_teams",
     "fct_matches",
     "fct_goal_contributions",
@@ -31,8 +32,18 @@ FORBIDDEN_KEYWORDS = re.compile(
 )
 MAX_TASKS = 4
 MAX_SQL_ATTEMPTS = 5
+MIN_PLAYER_MATCH_SCORE = 0.85
 
 load_dotenv(PROJECT_ROOT / ".env")
+
+
+class PlayerMatch(TypedDict):
+    """A player resolved from a user-provided name."""
+
+    player_id: int
+    latest_name: str
+    fuzzy_score: float
+    edit_distance: int
 
 
 class AgentState(TypedDict):
@@ -50,6 +61,7 @@ class AgentState(TypedDict):
     summary: str
     sql_error: str
     attempts: int
+    player_match: PlayerMatch | None
 
 
 def plan_tasks(state: AgentState) -> dict[str, object]:
@@ -88,7 +100,92 @@ Rules:
         "current_task": tasks[0],
         "sql_error": "",
         "attempts": 0,
+        "player_match": None,
     }
+
+
+def extract_player_name(task: str) -> str | None:
+    """Return the explicitly named player in a task, if the task has one."""
+    instructions = """Identify whether this Norwegian football-data task asks for
+information about one explicitly named player.
+
+Return ONLY valid JSON with this exact shape:
+{"player_name": "the name from the task"} or {"player_name": null}
+
+Do not return a team name, a coach, a league, a generic role such as
+"toppscorer", or an inferred player. Return a name only when the task explicitly
+names one individual player."""
+    model = ChatOpenAI(model="gpt-4.1", temperature=0)
+    response = model.invoke(f"{instructions}\nOppgave: {task}")
+    try:
+        parsed = json.loads(str(response.content))
+    except json.JSONDecodeError as error:
+        raise RuntimeError("Kunne ikke tolke spilleridentifikasjon fra modellen.") from error
+
+    player_name = parsed.get("player_name") if isinstance(parsed, dict) else None
+    if player_name is None:
+        return None
+    if not isinstance(player_name, str) or not player_name.strip():
+        raise RuntimeError("Modellen returnerte et ugyldig spillernavn.")
+    return player_name.strip()
+
+
+def find_best_player_match(
+    connection: duckdb.DuckDBPyConnection, player_name: str
+) -> PlayerMatch | None:
+    """Return the highest-scoring canonical player match above the confidence floor."""
+    query = """
+    WITH candidates AS (
+        SELECT
+            player_id,
+            latest_name,
+            jaro_winkler_similarity(
+                lower(trim(strip_accents(latest_name))),
+                lower(trim(strip_accents(?)))
+            ) AS fuzzy_score,
+            levenshtein(
+                lower(trim(strip_accents(latest_name))),
+                lower(trim(strip_accents(?)))
+            ) AS edit_distance
+        FROM dim_players
+    )
+    SELECT
+        player_id,
+        latest_name,
+        fuzzy_score,
+        edit_distance
+    FROM candidates
+    WHERE fuzzy_score >= ?
+    ORDER BY fuzzy_score DESC, edit_distance ASC, player_id ASC
+    LIMIT 1
+    """
+    row = connection.execute(
+        query, [player_name, player_name, MIN_PLAYER_MATCH_SCORE]
+    ).fetchone()
+    if row is None:
+        return None
+    return PlayerMatch(
+        player_id=int(row[0]),
+        latest_name=str(row[1]),
+        fuzzy_score=float(row[2]),
+        edit_distance=int(row[3]),
+    )
+
+
+def resolve_player(state: AgentState) -> dict[str, PlayerMatch | None]:
+    """Resolve an explicitly named player before generating SQL for the task."""
+    player_name = extract_player_name(state["current_task"])
+    if player_name is None:
+        return {"player_match": None}
+
+    with duckdb.connect(str(DB_PATH), read_only=True) as connection:
+        player_match = find_best_player_match(connection, player_name)
+    if player_match is None:
+        raise RuntimeError(
+            f"Fant ingen spiller som matcher '{player_name}' med score på minst "
+            f"{MIN_PLAYER_MATCH_SCORE:.2f}."
+        )
+    return {"player_match": player_match}
 
 
 def generate_sql(state: AgentState) -> dict[str, str]:
@@ -111,6 +208,22 @@ requested season; use only the returned canonical name in fact-table filters.
 Never hardcode 'SK Brann', use the user's alias directly in a fact-table filter,
 or invent a team name that is not present in dim_teams.
 """
+    player_match = state.get("player_match")
+    player_context = ""
+    if player_match is not None:
+        player_context = f"""
+The task explicitly names a player. That name has been resolved against
+dim_players and MUST be filtered using this canonical match:
+- player_id: {player_match['player_id']}
+- latest_name: {player_match['latest_name']}
+- fuzzy score: {player_match['fuzzy_score']:.3f}
+
+Use player_id, never a name, in fact-table filters. In fct_lineups, filter
+player_id = {player_match['player_id']}. In fct_goal_contributions, use
+scorer_player_id = {player_match['player_id']} for goals, assist_player_id =
+{player_match['player_id']} for assists, or either column when the task asks
+about both. Do not resolve or substitute a different player.
+"""
     model = ChatOpenAI(model="gpt-4.1", temperature=0)
     error_feedback = ""
     if state.get("sql_error"):
@@ -119,7 +232,7 @@ or invent a team name that is not present in dim_teams.
 Generate a corrected query that avoids the error.\n"""
     current_task = state["tasks"][state["task_index"]]
     response = model.invoke(
-        f"{instructions}{error_feedback}\nQuestion: {current_task}"
+        f"{instructions}{player_context}{error_feedback}\nQuestion: {current_task}"
     )
     sql = str(response.content)
     return {
@@ -255,12 +368,14 @@ SQL-resultat:
 
 workflow = StateGraph(AgentState)
 workflow.add_node("plan_tasks", plan_tasks)
+workflow.add_node("resolve_player", resolve_player)
 workflow.add_node("generate_sql", generate_sql)
 workflow.add_node("execute_sql", execute_sql)
 workflow.add_node("collect_result", collect_result)
 workflow.add_node("summarize_results", summarize_results)
 workflow.add_edge(START, "plan_tasks")
-workflow.add_edge("plan_tasks", "generate_sql")
+workflow.add_edge("plan_tasks", "resolve_player")
+workflow.add_edge("resolve_player", "generate_sql")
 workflow.add_edge("generate_sql", "execute_sql")
 
 
@@ -271,7 +386,7 @@ def route_after_execution(state: AgentState) -> str:
 
 def route_after_collection(state: AgentState) -> str:
     """Continue with the next task or finish with a summary."""
-    return "generate_sql" if state["task_index"] < len(state["tasks"]) else "summarize_results"
+    return "resolve_player" if state["task_index"] < len(state["tasks"]) else "summarize_results"
 
 
 workflow.add_conditional_edges(
@@ -282,7 +397,7 @@ workflow.add_conditional_edges(
 workflow.add_conditional_edges(
     "collect_result",
     route_after_collection,
-    {"generate_sql": "generate_sql", "summarize_results": "summarize_results"},
+    {"resolve_player": "resolve_player", "summarize_results": "summarize_results"},
 )
 workflow.add_edge("summarize_results", END)
 agent = workflow.compile()
