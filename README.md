@@ -78,3 +78,8 @@ Web Sources (FotMob, Transfermarkt)
 ## TODO
 
 - Scrape match statistics 
+- Evaluate JEV-based domain routing for the SQL agent. Route questions to
+  domain-specific schema context (for example, goals/assists, league standings,
+  matches, or lineups) before SQL generation to reduce prompt tokens and
+  schema-related SQL retries. Measure cost, latency, retry rate, and answer
+  quality against the current full-guide approach before integrating it.

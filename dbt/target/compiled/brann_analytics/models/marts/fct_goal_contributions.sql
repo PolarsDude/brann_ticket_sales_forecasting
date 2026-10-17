@@ -87,7 +87,9 @@ b.latest_name as scorer_name,
 a.scorer_player_id,
 c.latest_name as assist_name,
 a.assist_player_id,
-a.scorer_team
+a.scorer_team,
+a.score,
+a.is_own_goal
 from t1 a 
 left join dim_players_2 b
 on a.scorer_player_id = b.player_id
