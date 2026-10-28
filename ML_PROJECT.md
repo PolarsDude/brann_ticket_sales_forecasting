@@ -26,7 +26,7 @@ The primary data source is **match reports** (minute-by-minute commentary and ev
 - Counter attacks, low defensive block, defensive errors
 - Attacking threat (score)
 
-Each feature comes with a confidence level. Features are aggregated per match up to the prediction minute (for example, counts per team).
+Each feature comes with a confidence level. Features are aggregated per match up to the prediction minute, either cumulatively from kick-off or over recent time windows.
 
 **Handling of missing and uncertain values** (the model is tree-based, so nulls are supported):
 
@@ -36,7 +36,7 @@ Each feature comes with a confidence level. Features are aggregated per match up
 
 #### Aggregation design
 
-One row per `(match_id, T)` where `T` is the cutoff minute (for example every 5 minutes: 5, 10, ..., 90). All features use only comments with `event_time <= T` to avoid leakage. A single model is trained with `T` as a feature. "Team" means home (`H`) or away (`B`); every feature is built for both teams and as a difference `H - B`.
+One row per `(match_id, T)` where `T` is the cutoff minute (for example every 5 minutes: 5, 10, ..., 90). All features use only comments with `event_time <= T` to avoid leakage. A single model is trained with `T` as a feature. "Team" means home (`H`) or away (`B`); team-specific features are built for both teams, with home-away differences where applicable.
 
 Helper columns per comment (before aggregation):
 
@@ -46,9 +46,11 @@ Helper columns per comment (before aggregation):
 
 Overview of aggregations:
 
+**Cumulative vs. rolling:** Sections 1-4 below are cumulative snapshots from kick-off through `T`: at each cutoff, aggregate all eligible comments satisfying `event_time <= T`. Counts and sums therefore represent running totals (equivalent to a `cum_sum` over events ordered by match time); means, maxima, shares and ratios are recalculated from that same cumulative set. These are **not** rolling-window values. Only features in section 5 use the trailing rolling windows `(T - W, T]`. The names in sections 1-4 omit a `_cum` suffix for readability, but their cumulative behavior is explicit here. In the specialized `mr_attacking_team` feature set below, cumulative features are marked with `_cum`.
+
 **1. Activity and coverage**
 
-| Feature | How |
+| Cumulative feature | How |
 |---|---|
 | `n_comments` | count of comments <= T |
 | `n_gp` | `sum(is_gp)` |
@@ -56,7 +58,7 @@ Overview of aggregations:
 
 **2. Attacks and chances (per team)**
 
-| Feature | How |
+| Cumulative feature | How |
 |---|---|
 | `attacks` | `sum(mr_attacking_team == team)` |
 | `chance_score` | `sum(chance_w)` where the team attacks |
@@ -70,7 +72,7 @@ Overview of aggregations:
 
 **3. Shot outcomes (per team)**
 
-| Feature | How |
+| Cumulative feature | How |
 |---|---|
 | `shots` | count where `mr_shot_outcome` is not null and not `"none"` |
 | `shots_on_target` | `saved + goal + woodwork` |
@@ -82,7 +84,7 @@ Shots and outcomes come from text and are less reliable than structured match da
 
 **4. Match picture (per team)**
 
-| Feature | How |
+| Cumulative feature | How |
 |---|---|
 | `pressure` | `sum(mr_attacking_pressure in (team, "both"))` |
 | `dominance` | `sum(mr_territorial_dominance == team)` |
@@ -91,13 +93,24 @@ Shots and outcomes come from text and are less reliable than structured match da
 | `low_block` | `sum(mr_defensive_low_block == team)` |
 | `def_errors` | `sum(mr_defensive_error == team)` (also `opp_def_errors` for the opponent's errors) |
 
-**5. Time windows (momentum)**
+**5. Rolling time windows (momentum)**
 
-Repeat the most important features (`chance_score`, `threat_sum`, `pressure`, `shots_on_target`) for the window `(T - W, T]` with `W = 10` or `15`. This captures who is on top right now and not only the total since kick-off.
+For each prediction cutoff `T`, calculate the selected features separately from the comments in each trailing window `(T - W, T]`, using `W = 5`, `10` and `15` minutes. The lower boundary is exclusive and the cutoff is inclusive: an event exactly at `T - W` is excluded, while an event at `T` is included. For example, `chance_score_home_last10` at minute 30 sums the home team's chance weights for comments with `20 < event_time <= 30`.
+
+| Rolling feature | How |
+|---|---|
+| `chance_score_{team}_last{W}` | Sum `chance_w` where `mr_attacking_team` is the team and `T - W < event_time <= T` |
+| `threat_sum_{team}_last{W}` | Sum `mr_attacking_threat` where `mr_attacking_team` is the team in the window |
+| `pressure_{team}_last{W}` | Count comments where `mr_attacking_pressure` is the team or `"both"` in the window |
+| `shots_on_target_{team}_last{W}` | Count `"saved"`, `"goal"` and `"woodwork"` outcomes where `mr_attacking_team` is the team in the window |
+| `attacks_{team}_last{W}` | Count comments where `mr_attacking_team` is the team in the window |
+| `attacks_diff_last{W}` | `home_attacks_last{W} - away_attacks_last{W}` |
+
+Here `{team}` is `home` or `away`, and `{W}` is `5`, `10` or `15`. Apply the same window and cutoff to every feature; do not include comments after `T`. Rolling features complement, rather than replace, cumulative features: cumulative values describe the whole match so far, while rolling values describe recent momentum.
 
 **6. Differences and ratios**
 
-- `diff_X = home_X - away_X` for all features above.
+- `diff_X = home_X - away_X` for team-specific features, including rolling features (`diff_X_last{W}` or the named `attacks_diff_last{W}`).
 - `share_X = home_X / (home_X + away_X)` for event counts; null if the denominator is 0.
 
 **7. Not from `mr_*`, but required**
@@ -111,7 +124,7 @@ Repeat the most important features (`chance_score`, `threat_sum`, `pressure`, `s
 
 1. Build sections 2 and 4 first (chances, threat, pressure).
 2. Add differences, `score_diff` and `minutes_left`.
-3. Add time windows (section 5).
+3. Add rolling 5-, 10- and 15-minute windows (section 5).
 4. Add the rest (section 3) and check what matters with feature importance.
 
 **Pitfalls**
@@ -132,13 +145,17 @@ Values are `home`, `away` or null (no concrete offensive action, or team cannot 
 | `away_attacks_cum` | count of comments <= T with `mr_attacking_team == "away"` |
 | `attacks_diff_cum` | `home_attacks_cum - away_attacks_cum` |
 | `attacks_share_home_cum` | `home / (home + away)`, null if both are 0 |
+| `home_attacks_last5`, `away_attacks_last5` | same counts in the window `(T - 5, T]` |
+| `attacks_diff_last5` | `home_attacks_last5 - away_attacks_last5` |
 | `home_attacks_last10`, `away_attacks_last10` | same counts in the window `(T - 10, T]` |
-| `attacks_diff_last10` | difference in the window |
+| `attacks_diff_last10` | `home_attacks_last10 - away_attacks_last10` |
+| `home_attacks_last15`, `away_attacks_last15` | same counts in the window `(T - 15, T]` |
+| `attacks_diff_last15` | `home_attacks_last15 - away_attacks_last15` |
 | `mins_since_home_attack`, `mins_since_away_attack` | `T - last event_time` for the team, null if none yet |
 | `n_comments_cum` | all comments <= T (coverage, used for normalization) |
 | `attack_density` | `(home + away) / n_comments_cum` |
 
-Start with seven: `home_attacks_cum`, `away_attacks_cum`, `attacks_diff_cum`, `attacks_diff_last10`, `home_attacks_last10`, `away_attacks_last10`, `n_comments_cum`. Add `share`, `mins_since_*` and `attack_density` only after a baseline exists.
+Start with the cumulative attack counts and their difference, plus home/away attack counts and attack differences for each of the 5-, 10- and 15-minute windows, and `n_comments_cum`. Add `share`, `mins_since_*` and `attack_density` only after a baseline exists.
 
 Notes:
 
