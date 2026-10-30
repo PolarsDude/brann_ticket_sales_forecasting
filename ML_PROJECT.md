@@ -72,15 +72,32 @@ Overview of aggregations:
 
 **3. Shot outcomes (per team)**
 
+`mr_shot_outcome` is the text-derived outcome and does not include `"goal"` or
+`"disallowed"`. Create `mr_shot_outcome_final` by overriding the text outcome
+with the structured goal event:
+
+```text
+mr_shot_outcome_final =
+    "goal" when event_type == "G"
+    mr_shot_outcome otherwise
+```
+
+`mr_shot_outcome_final` therefore contains `"goal"` together with the
+text-derived outcomes `"saved"`, `"off_target"`, `"blocked"`, `"woodwork"`,
+`"none"` and `"unknown"`. The structured event type is authoritative for
+goals; the LLM must not infer goals from prose.
+
 | Cumulative feature | How |
 |---|---|
-| `shots` | count where `mr_shot_outcome` is not null and not `"none"` |
-| `shots_on_target` | `saved + goal + woodwork` |
-| `saved`, `off_target`, `blocked`, `woodwork` | count per outcome |
-| `goals_text` | `sum(mr_shot_outcome == "goal")` |
+| `shots` | count where `mr_shot_outcome_final` is not null and not `"none"` |
+| `shots_on_target` | `saved + goal + woodwork` from `mr_shot_outcome_final` |
+| `saved`, `off_target`, `blocked`, `goal`, `woodwork` | count per final outcome |
+| `goals` | `sum(mr_shot_outcome_final == "goal")` |
 | `shot_accuracy` | `shots_on_target / shots` (null if `shots == 0`) |
 
-Shots and outcomes come from text and are less reliable than structured match data. Use `goals_text` only as a sanity check against the real score.
+Shots and non-goal outcomes from text are less reliable than structured match
+data. Use the final outcome for features and use the raw text-derived outcome
+only for diagnostics.
 
 **4. Match picture (per team)**
 
@@ -102,7 +119,7 @@ For each prediction cutoff `T`, calculate the selected features separately from 
 | `chance_score_{team}_last{W}` | Sum `chance_w` where `mr_attacking_team` is the team and `T - W < event_time <= T` |
 | `threat_sum_{team}_last{W}` | Sum `mr_attacking_threat` where `mr_attacking_team` is the team in the window |
 | `pressure_{team}_last{W}` | Count comments where `mr_attacking_pressure` is the team or `"both"` in the window |
-| `shots_on_target_{team}_last{W}` | Count `"saved"`, `"goal"` and `"woodwork"` outcomes where `mr_attacking_team` is the team in the window |
+| `shots_on_target_{team}_last{W}` | Count `"saved"`, `"goal"` and `"woodwork"` in `mr_shot_outcome_final` where `mr_attacking_team` is the team in the window |
 | `attacks_{team}_last{W}` | Count comments where `mr_attacking_team` is the team in the window |
 | `attacks_diff_last{W}` | `home_attacks_last{W} - away_attacks_last{W}` |
 
